@@ -598,7 +598,7 @@ SELECT FOUND_ROWS();
 			, metatable.metadata
 
 			FROM {$wpdb->posts}
-			LEFT JOIN {$wpdb->posts} parent ON {$wpdb->posts}.ID=parent.post_parent
+			LEFT JOIN {$wpdb->posts} parent ON {$wpdb->posts}.post_parent=parent.ID
 			LEFT JOIN {$wpdb->users} author ON {$wpdb->posts}.post_author=author.ID
 			LEFT JOIN {$wpdb->term_relationships} ON {$wpdb->posts}.ID={$wpdb->term_relationships}.object_id 
 			LEFT JOIN {$wpdb->term_taxonomy} ON {$wpdb->term_taxonomy}.term_taxonomy_id={$wpdb->term_relationships}.term_taxonomy_id
