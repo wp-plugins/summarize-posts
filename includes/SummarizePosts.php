@@ -237,6 +237,86 @@ class SummarizePosts
 
 	//------------------------------------------------------------------------------
 	/**
+	 * Rewrite of built-in get_categories() function.
+	 *
+		http://codex.wordpress.org/Function_Reference/get_categories
+		see wp-includes/category.php
+		
+	Adds a few extra attributes to the output.
+	
+	Returns an array of Ojects, e.g. 
+	
+	Array
+	(
+	    [0] => stdClass Object
+	        (
+	            [term_id] => 1
+	            [name] => Uncategorized
+	            [slug] => uncategorized
+	            [term_group] => 0
+	            [term_taxonomy_id] => 1
+	            [taxonomy] => category
+	            [description] => 
+	            [parent] => 0
+	            [count] => 1
+	            [cat_ID] => 1
+	            [category_count] => 1
+	            [category_description] => 
+	            [cat_name] => Uncategorized
+	            [category_nicename] => uncategorized
+	            [category_parent] => 0
+	            [permalink]	=> http://pretasurf:8888/?taxonomy=collection&term=spring_summer_2011 
+	            [is_active]	=> 1
+	        )
+	
+	)
+	*/
+	public static function get_taxonomy_terms( $args = '' ) 
+	{
+		// get_categories() defaults
+		$defaults = array(
+		    'type'                     => 'post',
+		    'child_of'                 => 0,
+		    'parent'                   => null,
+		    'orderby'                  => 'name',
+		    'order'                    => 'ASC',
+		    'hide_empty'               => 1,
+		    'hierarchical'             => 1,
+		    'exclude'                  => null,
+		    'include'                  => null,
+		    'number'                   => null,
+		    'taxonomy'                 => 'category',
+		    'pad_counts'               => false 
+	    );
+	
+		// We use both so we can parse the URL type inputs that come in as a string.
+		$args = wp_parse_args($args, $defaults); // This converts the input to an array
+		$args = shortcode_atts($defaults, $args); // This will filter out invalid input
+		
+		$active_taxonomy = get_query_var('taxonomy');
+		$active_slug = get_query_var('term');
+		
+		$taxonomies = get_categories($args);
+		
+		// Add a few custom attributes for convenience
+		foreach ( $taxonomies as &$t )
+		{
+			$t->permalink = home_url("?taxonomy=$t->taxonomy&amp;term=$t->slug");
+			if ( $t->slug == $active_slug )
+			{
+				$t->is_active = true;	
+			}
+			else
+			{
+				$t->is_active = false;			
+			}
+		}
+		
+		return $taxonomies;
+
+	}
+	//------------------------------------------------------------------------------
+	/**
 	SYNOPSIS: a simple parsing function for basic templating.
 	INPUT:
 		$tpl (str): a string containing [+placeholders+]

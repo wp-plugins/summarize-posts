@@ -109,9 +109,9 @@ class GetPostsQuery
 		'date_max'		=> '',	// YYYY-MM-DD (optionally include the time)
 		
 		// Search by Taxonomies
-		'taxonomy'		=> null, // category, post_tag (tag), or any custom taxonomy
-		'taxonomy_term'	=> null,		// comma-separated string or array
-		'taxonomy_slug'	=> null,		// comma-separated string or array 
+		'taxonomy'		=> null, 	// category, post_tag (tag), or any custom taxonomy
+		'taxonomy_term'	=> null,	// comma-separated string or array
+		'taxonomy_slug'	=> null,	// comma-separated string or array 
 		
 		// uses LIKE %matching%
 		'search_term'	=> '', // Don't use this with the above search stuff 
@@ -274,7 +274,7 @@ class GetPostsQuery
 					
 				// Taxonomies
 				case 'taxonomy':
-					if ( in_array($val, $this->registered_taxonomies) )
+					if ( taxonomy_exists($val) )
 					{
 						$this->args[$var] = $val;
 					}
@@ -381,18 +381,11 @@ class GetPostsQuery
 					}
 					break;
 				case 'post_type':
-					if ( !in_array($i, $this->registered_post_types) )
+					if ( !post_type_exists($i) )
 					{
 						$this->errors[] = __('Invalid post_type:') . $i;
 					}
 					break;
-				case 'taxonomy':
-					if ( !in_array($i, $this->registered_taxonomies) )
-					{
-						$this->errors[] = __('Invalid taxonomy:') . $i;
-					}
-					break;
-
 				case 'post_status':
 					if ( !in_array($i, array('inherit','publish','auto-draft')) )
 					{

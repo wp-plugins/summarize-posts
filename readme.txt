@@ -64,9 +64,11 @@ print $Q->SQL;
 
 == Screenshots ==
 
+1. This plugin has an administration page where you can change some of the settings that affect how it works.
 
 == Changelog ==
 
+= In development =
 
 = 0.4 =
 
