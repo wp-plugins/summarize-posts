@@ -14,6 +14,7 @@
 * weird and whacky restrictions with the WP db API functions; this lets me
 * join on foreign tables and cut down on multiple inefficient select queries.
 
+TODO: Nonces for search forms.
 wp_create_nonce('cctm_delete_field')
 $nonce = self::_get_value($_GET, '_wpnonce');
 if (! wp_verify_nonce($nonce, 'cctm_delete_field') ) {
@@ -1046,7 +1047,7 @@ SELECT FOUND_ROWS();
 
 	//------------------------------------------------------------------------------
 	/**
-	* Prints a formatted version of filtered input arguments.
+	* Prints a formatted version of filtered input arguments. 
 	*/
 	public function format_args()
 	{
