@@ -207,17 +207,22 @@ class GetPostsQuery
 					<div class="summarize-post-arguments">%s</div>
 					
 				<h2>%s</h2>
-					<div class="summarize-posts-query"><textarea rows="10" cols="80">%s</textarea></div>
+					<div class="summarize-posts-query"><textarea rows="20" cols="80">%s</textarea></div>
 					
 				<h2>%s</h2>
 					<div class="summarize-posts-errors">%s</div>
+				
+				<h2>%s</h2>
+					<div class="summarize-posts-shortcode"><textarea rows="3" cols="80">%s</textarea></div>
 			</div>'
 			, __('Arguments')
 			, $this->format_args()
 			, __('Raw Database Query')
 			, $this->SQL
 			, __('Errors')
-			, $this->format_errors
+			, $this->format_errors()
+			, __('Comparable Shorcode')
+			, $this->get_comparable_shortcode()
 		);
 	}
 
@@ -1089,9 +1094,9 @@ SELECT FOUND_ROWS();
 			$items = '';
 			foreach ($this->errors as $e)
 			{
-				$items .= '<li>'.$e.'</li>';
+				$items .= '<li>'.$e.'</li>' ."\n";
 			}
-			$output = '<ul>'.$items.'</ul>';
+			$output = '<ul>'."\n".$items.'</ul>'."\n";
 			return $output;
 		}
 		else
@@ -1100,21 +1105,48 @@ SELECT FOUND_ROWS();
 		}	
 		
 	}
+
+	//------------------------------------------------------------------------------
+	/**
+	* Returns a string of a comparable shortcode for the query entered.
+	*/
+	public function get_comparable_shortcode()
+	{
+		$args = array();
+		foreach ($this->args as $k => $v)
+		{
+			if ( !empty($v) )
+			{
+				if ( is_array($v) )
+				{
+					$args[] = $k.'="'.implode(',',$v).'"';
+				}
+				else
+				{
+					$args[] = $k.'="'.$v.'"';
+				}
+			}
+		}
+		$args = implode(' ', $args);
+		if (!empty($args)) {
+			$args = ' '.$args;
+		}
+		return '[summarize-posts'.$args.']';
+	}
 	
 	//------------------------------------------------------------------------------
 	/**
 	* http://www.webcheatsheet.com/PHP/get_current_page_url.php
-	* This has got to be insecure... if a nefarious user posts a link to this site with embedded
-	* Javascript or something, it'd print it out.
+	* This uses wp_kses() to reduce risk of some a-hole 
 	*/
 	static function get_current_page_url() 
 	{
 		//print_r($_SERVER); exit;
 		if ( isset($_SERVER['REQUEST_URI']) ) 
 		{
-			$_SERVER['REQUEST_URI'] = preg_replace('/offset=[0-9]*/','', $_SERVER['REQUEST_URI']);
+			$_SERVER['REQUEST_URI'] = preg_replace('/&?offset=[0-9]*/','', $_SERVER['REQUEST_URI']);
 		}
-		return $_SERVER['REQUEST_URI'];
+		return wp_kses($_SERVER['REQUEST_URI'], '');
 	}
 	
 	//------------------------------------------------------------------------------

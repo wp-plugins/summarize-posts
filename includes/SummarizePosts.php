@@ -173,12 +173,10 @@ class SummarizePosts
 	//------------------------------------------------------------------------------
 	/**
 	* @param	object	$QueryObj	Instantiation of GetPostsQuery
-	* @param	array	$raw_args	Raw arguments passed to SummarizePosts::summarize
-	* @param	array	$formatting_args	Arguments that control the output format.
 	*/
-	public static function get_help_msg($QueryObj, $raw_args, $formatting_args)
+	public static function get_help_msg(&$QueryObj)
 	{
-		return 'Helpful message goes here...';
+		print $QueryObj; // relies on the __toString() magic method
 	}
 	
 	//------------------------------------------------------------------------------
@@ -557,18 +555,26 @@ Convenience:
 
 		$formatting_args['tpl_str'] = self::_get_tpl($content_tpl, $formatting_args);		
 
+		$output = '';
 		//print_r($formatting_args); exit;
 		$Q = new GetPostsQuery( $raw_args );
 		$results = $Q->get_posts();
 
 		// Print help message.  Should include the SQL statement, errors
-		if ($other_params['help'])
+		if (isset($raw_args['help']) )
 		{
-			print self::get_help_msg($Q, $raw_args, $formatting_args);
+			self::get_help_msg($Q); // this prints the results
 		}
-
-		print self::format_results($results, $formatting_args);
-
+		else
+		{
+			$output .= self::format_results($results, $formatting_args);
+			if ( $Q->paginate )
+			{
+				$output .= '<div class="summarize-posts-pagination-links">'.$Q->get_pagination_links().'</div>';
+			}
+		}
+		
+		return $output;
 	}
 }
 /*EOF*/
