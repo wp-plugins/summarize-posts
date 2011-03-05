@@ -13,6 +13,13 @@
 * I've constructed a custom MySQL query that does the searching because I ran into
 * weird and whacky restrictions with the WP db API functions; this lets me
 * join on foreign tables and cut down on multiple inefficient select queries.
+
+wp_create_nonce('cctm_delete_field')
+$nonce = self::_get_value($_GET, '_wpnonce');
+if (! wp_verify_nonce($nonce, 'cctm_delete_field') ) {
+	die( __('Invalid request.', CCTM_TXTDOMAIN ) );
+}
+
 * 
 */
 class GetPostsQuery
@@ -25,12 +32,23 @@ class GetPostsQuery
 	// Used to check that the group_concat is getting everything.
 	const caboose = '$$$$'; 
 	
+	private $P; // stores the Pagination object.
+	private $pagination_links = ''; // stores the html for the pagination links (if any).
+
+	private $page;
+	
+	
+	// Goes to true if orderby is set to a value not in the $wp_posts_columns array
+	private $sort_by_meta_flag = false;
+		
 	// Set in the controller. If set to true, some helpful debugging msgs are printed.
 	public $debug = false; 
 
-
+	// Stores the number of results available (used only when paginate is set to true)
+	public $found_rows = null; 
+	
 	// See http://codex.wordpress.org/Function_Reference/wpdb_Class
-	public $output_type;	// ARRAY_A, OBJECT
+	private $output_type;	// ARRAY_A, OBJECT
 		
 	// Contains all arguments listed in the $defaults, with any modifications passed by the user
 	// at the time of instantiation.
@@ -181,7 +199,26 @@ class GetPostsQuery
 	*/
 	public function __toString() 
 	{
-		return print_r($this->args, true);
+		return sprintf(
+			'<div class="summarize-posts-summary">
+				<h1>Summarize Posts</h1>
+				
+				<h2>%s</h2>
+					<div class="summarize-post-arguments">%s</div>
+					
+				<h2>%s</h2>
+					<div class="summarize-posts-query"><textarea rows="10" cols="80">%s</textarea></div>
+					
+				<h2>%s</h2>
+					<div class="summarize-posts-errors">%s</div>
+			</div>'
+			, __('Arguments')
+			, $this->format_args()
+			, __('Raw Database Query')
+			, $this->SQL
+			, __('Errors')
+			, $this->format_errors
+		);
 	}
 
 	//------------------------------------------------------------------------------
@@ -213,7 +250,9 @@ class GetPostsQuery
 				case 'orderby':
 					if ( !in_array( $val, $this->wp_posts_columns) )
 					{
-						$this->errors[] = __('Invalid orderby column');
+						$this->sort_by_meta_flag = true;
+						$this->args[$var] = $val;
+						$this->errors[] = __('Possible error: orderby column not a default post column: ') . $val;
 					}
 					else
 					{
@@ -383,7 +422,8 @@ class GetPostsQuery
 				case 'post_type':
 					if ( !post_type_exists($i) )
 					{
-						$this->errors[] = __('Invalid post_type:') . $i;
+						$this->errors[] = __('Invalid post_type:') . $i . ' '. print_r($this->registered_post_types, true);
+						
 					}
 					break;
 				case 'post_status':
@@ -405,7 +445,18 @@ class GetPostsQuery
 		
 		return $output;
 	}
-	
+	//------------------------------------------------------------------------------
+	/**
+	OUTPUT: integer: the number of results for this particular query
+	Must have included the SQL_CALC_FOUND_ROWS option in the query. This is done if
+	the paginate option is set to true.
+	*/
+	private function _count_posts()
+	{
+		global $wpdb;
+		$results = $wpdb->get_results( 'SELECT FOUND_ROWS() as cnt', OBJECT );
+		return $results[0]->cnt;
+	}	
 	//------------------------------------------------------------------------------
 	/**
 	Ensure a valid date. 0000-00-00 or '' qualify as valid; if you need to ensure a REAL
@@ -584,12 +635,15 @@ SELECT FOUND_ROWS();
 			[+select+]
 			{$wpdb->posts}.*
 			, parent.ID as 'parent_ID'
-			, parent.post_title as 'parent_post_title'
+			, parent.post_title as 'parent_title'
+			, parent.post_excerpt as 'parent_excerpt'
 			, author.display_name as 'author'
 			, thumbnail.ID as 'thumbnail_id'
 			, thumbnail.post_content as 'thumbnail_src'
 			, metatable.metadata
-
+			
+			[+select_metasortcolumn+]
+			
 			FROM {$wpdb->posts}
 			LEFT JOIN {$wpdb->posts} parent ON {$wpdb->posts}.post_parent=parent.ID
 			LEFT JOIN {$wpdb->users} author ON {$wpdb->posts}.post_author=author.ID
@@ -609,6 +663,9 @@ SELECT FOUND_ROWS();
 				WHERE {$wpdb->postmeta}.meta_key NOT LIKE '\_%'
 				GROUP BY {$wpdb->postmeta}.post_id
 			) metatable ON {$wpdb->posts}.ID=metatable.post_id
+			
+			[+join_for_metasortcolumn+]
+			
 			WHERE
 			(
 			1
@@ -616,6 +673,7 @@ SELECT FOUND_ROWS();
 			[+exclude+]
 			[+omit_post_type+]
 			[+post_type+]
+			[+post_mime_type+]
 			[+post_parent+]
 			[+post_status+]
 			[+yearmonth+]
@@ -635,12 +693,13 @@ SELECT FOUND_ROWS();
 			[+append+]
 			
 			GROUP BY {$wpdb->posts}.ID
-			ORDER BY {$wpdb->posts}.[+orderby+] [+order+]
+			ORDER BY [+orderby+] [+order+]
 			[+limit+]
 			[+offset+]";
 		
 		// Substitute into the query.
 		$hash = array();
+		$hash['select'] = ($this->args['paginate'])? 'SQL_CALC_FOUND_ROWS' : '';
 		$hash['colon_separator'] = self::colon_separator;
 		$hash['comma_separator'] = self::comma_separator;
 		$hash['caboose']		= self::caboose;
@@ -651,6 +710,7 @@ SELECT FOUND_ROWS();
 		
 		$hash['omit_post_type'] = $this->_sql_filter($wpdb->posts,'post_type','NOT IN', $this->args['omit_post_type']);
 		$hash['post_type'] = $this->_sql_filter($wpdb->posts,'post_type','IN', $this->args['post_type']);
+		$hash['post_mime_type'] = $this->_sql_filter_post_mime_type();
 		$hash['post_parent'] = $this->_sql_filter($wpdb->posts,'post_parent','IN', $this->args['post_parent']); 
 		$hash['post_status'] = $this->_sql_filter($wpdb->posts,'post_status','IN', $this->args['post_status']);
 		$hash['yearmonth'] = $this->_sql_yearmonth();
@@ -665,20 +725,62 @@ SELECT FOUND_ROWS();
 		$hash['date_max'] = $this->_sql_filter($wpdb->posts, $this->date_column,'<=', $this->args['date_max']);
 			
 		$hash['search'] = $this->_sql_search();
-			
-		$hash['orderby'] = $this->args['orderby']; // TODO: put into function so we can sort by custom cols.
+		
+		// Custom handling for sorting on custom fields
+		if ($this->sort_by_meta_flag)
+		{
+			$hash['orderby'] = 'metasortcolumn';
+			$hash['select_metasortcolumn'] = ', orderbymeta.meta_value as metasortcolumn';
+			$hash['join_for_metasortcolumn'] = sprintf('LEFT JOIN wp_postmeta orderbymeta ON %s.ID=orderbymeta.post_id AND orderbymeta.meta_key = %s'
+				, $wpdb->posts
+				, $wpdb->prepare('%s', $this->args['orderby'])
+			);
+		}
+		// Standard: sort by a column in wp_posts
+		else
+		{
+			$hash['orderby'] = $wpdb->posts.'.'.$this->args['orderby']; 
+			$hash['select_metasortcolumn'] = '';
+			$hash['join_for_metasortcolumn'] = '';
+		}	
+		
 		$hash['order'] = $this->args['order'];
 		$hash['limit'] = $this->_sql_limit();
 		$hash['offset'] = $this->_sql_offset();
 		
 		
 		$this->SQL = self::parse($this->SQL, $hash);
-		
+		// Strip whitespace
+		$this->SQL  = preg_replace('/\s\s+/', ' ', $this->SQL );
 		return $this->SQL;
 		// $results = $wpdb->get_results( $this->SQL, ARRAY_A );
 		//return $results;
 	}
 
+	//------------------------------------------------------------------------------
+	/**
+	* This kicks in when pagination is used. It allows $_GET parameters to override 
+	* normal args when pagination is used.
+	*/
+	private function _override_args_with_url_params()
+	{
+		if ( $this->args['paginate'])
+		{
+			if ( isset($_GET['page']))
+			{
+				$this->page = (int) $_GET['page'];
+			}
+			
+			foreach ( $this->args as $k => $v )
+			{
+				if ( isset($_GET[$k]) )
+				{
+					$this->__set($k, $_GET[$k]);
+				}
+			}
+		}
+	}
+	
 	//------------------------------------------------------------------------------
 	/**
 	* _sql_append: always include the IDs listed.
@@ -690,6 +792,8 @@ SELECT FOUND_ROWS();
 			return "OR $table.ID IN ({$this->args['append']})";
 		}
 	}
+	
+
 	
 	//------------------------------------------------------------------------------
 	/**
@@ -772,10 +876,10 @@ SELECT FOUND_ROWS();
 	private function _sql_filter_post_mime_type()
 	{
 		global $wpdb;
-		if ( $this->post_mime_type != 'all' )
+		if ( $this->args['post_mime_type'])
 		{
 			$query = " AND {$wpdb->posts}.post_mime_type LIKE %s";
-			return $wpdb->prepare( $query, $this->post_mime_type.'%' );			
+			return $wpdb->prepare( $query, $this->args['post_mime_type'].'%' );			
 		}
 		else
 		{
@@ -873,11 +977,11 @@ SELECT FOUND_ROWS();
 			return '';
 		}
 		// AND DATE_FORMAT(wp_posts.post_modified, '%Y%m') = '201102'
-		return sprintf("%s DATE_FORMAT(%s.%s, '%Y%m') = '%s'"
+		return sprintf("%s DATE_FORMAT(%s.%s, '%Y%m') = %s"
 			, $this->args['join_rule']
 			, $wpdb->posts
 			, $this->args['date_column']
-			, $this->args['yearmonth']
+			, $wpdb->prepare('%s', $this->args['yearmonth']) 
 		);
 	}
 	
@@ -897,9 +1001,9 @@ SELECT FOUND_ROWS();
 			return sprintf("%s (%s.meta_key=%s AND %s.meta_value=%s)"
 				, $this->args['join_rule']
 				, $wpdb->postmeta
-				, $this->args['meta_key']
+				, $wpdb->prepare('%s', $this->args['meta_key']) 
 				, $wpdb->postmeta
-				, $this->args['meta_value']
+				, $wpdb->prepare('%s', $this->args['meta_value']) 
 			);		
 		}
 		elseif ($this->args['meta_key']) 
@@ -911,30 +1015,70 @@ SELECT FOUND_ROWS();
 			return $this->_sql_filter($wpdb->postmeta,'meta_value','=', $this->args['meta_value']);
 		}
 	}
+
+	//------------------------------------------------------------------------------
+	/**
+	* See http://codex.wordpress.org/Function_Reference/wp_insert_post
+	*/
+	private function _log_post($post)
+	{
+		$my_post = array(
+			'post_title' => 'My post',
+			'post_content' => 'This is my post.',
+			'post_status' => 'draft',
+			'post_type'	=> 'summarize_post_log',
+			'post_author' => 1,
+		);
+		
+		// Insert the post into the database
+		wp_insert_post( $my_post );
+	}
 	
 	
 
 
 	//! Public Functions
-	/*------------------------------------------------------------------------------
-	OUTPUT: integer: the number of results for this particular query
-	------------------------------------------------------------------------------*/
-	public function count_posts()
-	{
-		$results = $this->_sql( $this->_sql_select_count(), false, false);
-		if ( !empty($results) )
-		{
-			return $results[0]['cnt'];
-		}
-		else
-		{
-			return 0;
-		}
-	}
 
 	//------------------------------------------------------------------------------
 	/**
-	* Format any errors, or returns a message saying there were no errors.
+	* Prints a formatted version of filtered input arguments.
+	*/
+	public function format_args()
+	{
+		$output = '<ul class="summarize-posts-argument-list">'."\n";
+		#print_r($this->args); exit;
+		foreach ($this->args as $k => $v)
+		{
+			if ( is_array($v) && !empty($v) )
+			{
+				$output .= '<li class="summarize-posts-arg"><strong>'.$k.'</strong>: Array 
+				('.implode(', ', $v).')</li>'."\n";		
+			}
+			else
+			{
+				if ( $v === false )
+				{
+					$v = 'false';
+				}
+				elseif ( $v === true )
+				{
+					$v = 'true';
+				}
+				elseif ( empty($v) )
+				{
+					$v = '--';
+				}
+				$output .= '<li class="summarize-posts-arg"><strong>'.$k.'</strong>: '.$v.'</li>'."\n";	
+			}
+		}
+		$output .= '</ul>'."\n";
+		return $output;
+	}
+	
+	
+	//------------------------------------------------------------------------------
+	/**
+	* Format any errors in an unordered list, or returns a message saying there were no errors.
 	*/
 	public function format_errors()
 	{
@@ -947,7 +1091,7 @@ SELECT FOUND_ROWS();
 			{
 				$items .= '<li>'.$e.'</li>';
 			}
-			$output = '<div><h2>'.__('GetPostsQuery Errors').'</h2><ul>'.$items.'</ul></div>';
+			$output = '<ul>'.$items.'</ul>';
 			return $output;
 		}
 		else
@@ -957,45 +1101,31 @@ SELECT FOUND_ROWS();
 		
 	}
 	
-	/*------------------------------------------------------------------------------
-	INPUT: $filter (str) representing a simplified mime-type (e.g. image, not image/jpeg)
-		or 'all' to represent all mime-types.
-	OUTPUT: HTML list items intended to be used in an unordered list. See the
-		tpls/main.tpl file and the [+post_mime_type_options+] placeholder.
-	------------------------------------------------------------------------------*/
-	public function get_post_mime_type_options($filter='all')
+	//------------------------------------------------------------------------------
+	/**
+	* http://www.webcheatsheet.com/PHP/get_current_page_url.php
+	* This has got to be insecure... if a nefarious user posts a link to this site with embedded
+	* Javascript or something, it'd print it out.
+	*/
+	static function get_current_page_url() 
 	{
-		if ( empty($this->post_type) || $this->post_type != 'attachment' )
+		//print_r($_SERVER); exit;
+		if ( isset($_SERVER['REQUEST_URI']) ) 
 		{
-			return '';
+			$_SERVER['REQUEST_URI'] = preg_replace('/offset=[0-9]*/','', $_SERVER['REQUEST_URI']);
 		}
-		
-		global $wpdb;
-		
-		$avail_post_mime_types = $this->_get_mime_types_for_listing($filter);
-
-		// Change complex mime_types (e.g. image/tiff) to simple, e.g. "image"
-		foreach ( $avail_post_mime_types as &$mt)
-		{
-			$mt = preg_replace('#/.*$#', '', $mt);
-		}
-		$avail_post_mime_types = array_unique($avail_post_mime_types);
-
-		$output = '';				
-		
-		// Format the list items for menu...
-		foreach ( $avail_post_mime_types as $mt )
-		{
-			$hash['mime_type'] 			= $mt;
-			$hash['mime_type_label']	= __(ucfirst($hash['mime_type'])); // cheap trick.
-			$hash['count'] 				= $this->_count_posts_this_mime_type($mt);
-			$output .= $this->parse($this->media_type_option_tpl, $hash);
-		}
-
-		return $output;
+		return $_SERVER['REQUEST_URI'];
 	}
-
-
+	
+	//------------------------------------------------------------------------------
+	/**
+	* Only valid if the pagination option has been set.  This is how the user should
+	* retrieve the pagination links that have been generated.
+	*/
+	public function get_pagination_links()
+	{
+		return $this->pagination_links;
+	}
 
 	/*------------------------------------------------------------------------------
 	This is the main event here (i.e. function).
@@ -1012,10 +1142,23 @@ SELECT FOUND_ROWS();
 			$this->__set($k, $v);
 		}
 
+		$this->_override_args_with_url_params(); // only kicks in when pagination is active
+
 		// ARRAY_A or OBJECT
 		$results = $wpdb->get_results( $this->_get_sql(), $this->output_type );
+		if ( $this->args['paginate'] )
+		{
+			$this->found_rows = $this->_count_posts();
+			# $this->_override_args_with_url_params();
+			include_once('PostPagination.conf.php');
+			include_once('PostPagination.php');
+			$this->P = new PostPagination();
+			$this->P->set_base_url( self::get_current_page_url() );
+			$this->P->set_offset($this->args['offset']); //
+			$this->P->set_results_per_page($this->args['limit']);  // You can optionally expose this to the user.
+			$this->pagination_links = $this->P->paginate($this->found_rows); // 100 is the count of records
+		}
 		
-		//print_r($results); exit;
 		foreach ($results as &$r)
 		{
 			// OBJECT
@@ -1037,7 +1180,7 @@ SELECT FOUND_ROWS();
 						$r->metadata = preg_replace("/$caboose$/", '', $r->metadata, -1, $count );
 						if (!$count)
 						{
-							$this->errors[] = __('There was a problem accessing custom fields. Try increasing the group_concat_max_len setting.');
+							$this->errors[] = __('There was a problem accessing custom fields. Try increasing the group_concat_max_len setting in the Summarize-Posts settings page.');
 						}
 						else
 						{
@@ -1054,6 +1197,7 @@ SELECT FOUND_ROWS();
 				unset($r->metadata);
 				
 				$r->permalink		= get_permalink( $r->ID );
+				$r->parent_permalink	= get_permalink( $r->parent_ID );
 				// $r->the_content 	= get_the_content(); // only works inside the !@#%! loop
 				$r->content 		= $r->post_content;
 				//$r['the_author']	->= get_the_author(); // only works inside the !@#%! loop
@@ -1102,6 +1246,7 @@ SELECT FOUND_ROWS();
 				unset($r['metadata']);
 				
 				$r['permalink']		= get_permalink( $r['ID'] );
+				$r['parent_permalink']	= get_permalink( $r['parent_ID'] );
 				// $r['the_content'] 	= get_the_content(); // only works inside the !@#%! loop
 				$r['content'] 		= $r['post_content'];
 				//$r['the_author']	= get_the_author(); // only works inside the !@#%! loop
@@ -1116,8 +1261,7 @@ SELECT FOUND_ROWS();
 		}
 
 		return $results;
-		//print_r($results); 
-//		return $output;
+
 	}
 
 	//------------------------------------------------------------------------------
@@ -1155,5 +1299,20 @@ SELECT FOUND_ROWS();
 	
 	}
 
+	//------------------------------------------------------------------------------
+	/**
+	* 
+	*/
+	public function set_output_type($output_type)
+	{
+		if ( $output_type != OBJECT && $output_type != ARRAY_A )
+		{
+			$this->errors[] = __('Invalid output type');
+		}
+		else
+		{
+			$this->output_type = $output_type;
+		}
+	}
 }
 /*EOF*/

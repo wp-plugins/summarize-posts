@@ -147,8 +147,8 @@ class SummarizePosts
 		include('admin_page.php');
 	
 	}
-	
-	
+
+		
 	//------------------------------------------------------------------------------
 	/**
 	* Get from Array. Safely retrieves a value from an array, bypassing the 'isset()' 
@@ -315,6 +315,36 @@ class SummarizePosts
 		return $taxonomies;
 
 	}
+
+	//------------------------------------------------------------------------------
+	/**
+	 * Retrieve the post content and chop it off at the marker specified.  OMFG WP is
+	 * so F'd up here. No reason to copy this function from wp-includes/post-template.php
+	 * because the built-in function is a total mess.
+	 * //! TODO... this is a mess
+	 * The goal is to make this damn thing loop-agnostic.  Remove all the F'ing global variables.
+	 
+		the_content('read more &raquo;'); // This ignores the <!--more--> bit if used in a single template file. *facepalm*
+		the <!--more--> bit is translated to <span id="more-524"></span> where 524 is the post id.
+		This is my home-rolled version of how the_content() works.
+
+	 */
+	static function get_the_content($post_id, $content, $more_link_text = null, $stripteaser = 0) {
+
+		$content = get_the_content( 'read more &raquo;');
+		#print $content;
+		// $post_id = get_the_ID();
+		//print $post_id; exit;
+		// $more = '<span id="more-'.$post_id.'"></span>';
+		$more = '<span id="more';
+#						$more = preg_quote('<span id="more-'.$post_id.'"></span>');						
+		// print $more; exit;
+		$content = preg_replace('/'.$more.'.*$/ms', '', $content);
+		$content = strip_tags($content) . '<a href="'.get_permalink(get_the_ID()).'">read more &raquo;</a>'; 
+		
+		return $content;
+	}
+	
 	//------------------------------------------------------------------------------
 	/**
 	SYNOPSIS: a simple parsing function for basic templating.

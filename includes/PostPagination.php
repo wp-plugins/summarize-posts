@@ -66,7 +66,7 @@ class PostPagination
 	function __construct() 
 	{
 		
-		$this->Config = new Pagination_Configuration();
+		$this->Config = new PostPagination_Configuration();
 
 		$this->set_tpls();
 	
@@ -99,6 +99,8 @@ class PostPagination
 
 	
 	//------------------------------------------------------------------------------
+	//! PRIVATE FUNCTIONS
+	//------------------------------------------------------------------------------
 	/**
 	*
 	*/
@@ -110,6 +112,7 @@ class PostPagination
 		}
 	}
 
+	//------------------------------------------------------------------------------
 	/**
 	*
 	*/
@@ -123,6 +126,7 @@ class PostPagination
 		}
 	}
 	
+	//------------------------------------------------------------------------------
 	/**
 	*
 	*/	
@@ -196,7 +200,7 @@ class PostPagination
 	}
 	
 	//------------------------------------------------------------------------------
-	//  PUBLIC FUNCTIONS
+	//! PUBLIC FUNCTIONS
 	//------------------------------------------------------------------------------
 	
 	/**
@@ -311,7 +315,7 @@ class PostPagination
 	{
 	
 		$record_count = (int) $record_count;
-		
+
 		// No point in doing pagination if there aren't enough records
 		if ( empty($record_count)) 
 		{
@@ -464,20 +468,22 @@ class PostPagination
 	* Set the various tpls (i.e. templates) that are used to format the various moving
 	* parts of this.
 	*/
-	public function set_tpls($active_group='')
+	public function set_tpls( $tpls=array() )
 	{
-		if ($active_group=='')
+		if ( empty($tpls) )
 		{
+
 			$active_group = $this->Config->active_group;
+			$tpls = $this->Config->tpls[$active_group];
 		}
 		
-		$this->firstTpl			= $this->Config->tpls[$active_group]['firstTpl'];
-		$this->lastTpl 			= $this->Config->tpls[$active_group]['lastTpl'];
-		$this->prevTpl 			= $this->Config->tpls[$active_group]['prevTpl'];
-		$this->nextTpl 			= $this->Config->tpls[$active_group]['nextTpl'];
-		$this->currentPageTpl 	= $this->Config->tpls[$active_group]['currentPageTpl'];
-		$this->pageTpl 			= $this->Config->tpls[$active_group]['pageTpl'];
-		$this->outerTpl 		= $this->Config->tpls[$active_group]['outerTpl'];
+		$this->firstTpl			= $tpls['firstTpl'];
+		$this->lastTpl 			= $tpls['lastTpl'];
+		$this->prevTpl 			= $tpls['prevTpl'];
+		$this->nextTpl 			= $tpls['nextTpl'];
+		$this->currentPageTpl 	= $tpls['currentPageTpl'];
+		$this->pageTpl 			= $tpls['pageTpl'];
+		$this->outerTpl 		= $tpls['outerTpl'];
 	}	
 
 }
