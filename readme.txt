@@ -50,7 +50,14 @@ There are lots of options there, many of them derived from WordPress' built in g
 
 = How do I paginate results? =
 
-If your query might return LOTS of results, it makes sense to paginate the results.  This can be done
+If your query might return LOTS of results, it makes sense to paginate the results.  This can be done by setting the *paginate* option, then by printing the results of the *get_pagination_links()* function. 
+
+`$Q = new GetPostsQuery();
+$Q->limit = 5; // determines the results per page displayed 
+$Q->paginate = true;
+$results = $Q->get_posts();
+// ... format results
+print $Q->get_pagination_links(); // print the pagination links`
 
 = I'm Having trouble getting the search results I want. What should I do? =
 
