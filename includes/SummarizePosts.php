@@ -9,8 +9,8 @@ class SummarizePosts
 {
 	const name 			= 'Summarize Posts';
 	const wp_req_ver 	= '3.1';
-	const php_req_ver 	= '5.2.13';
-	const mysql_req_ver	= '5.1.44';
+	const php_req_ver 	= '5.2.6';
+	const mysql_req_ver	= '5.0.0';
 	
 	// used in the wp_options table
 	const db_key			= 'summarize_posts';

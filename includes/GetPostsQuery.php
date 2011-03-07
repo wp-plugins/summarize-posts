@@ -207,6 +207,9 @@ class GetPostsQuery
 				
 				<h2>%s</h2>
 					<div class="summarize-post-arguments">%s</div>
+
+				<h2>%s</h2>
+					<div class="summarize-post-output_type">%s</div>
 					
 				<h2>%s</h2>
 					<div class="summarize-posts-query"><textarea rows="20" cols="80">%s</textarea></div>
@@ -216,15 +219,22 @@ class GetPostsQuery
 				
 				<h2>%s</h2>
 					<div class="summarize-posts-shortcode"><textarea rows="3" cols="80">%s</textarea></div>
+					
+				<h2>%s</h2>
+					<div class="summarize-posts-results"><textarea rows="20" cols="80">%s</textarea></div>
 			</div>'
 			, __('Arguments')
 			, $this->format_args()
+			, __('Output Type')
+			, $this->output_type
 			, __('Raw Database Query')
 			, $this->SQL
 			, __('Errors')
 			, $this->format_errors()
 			, __('Comparable Shorcode')
 			, $this->get_comparable_shortcode()
+			, __('Results')
+			, print_r( $this->get_posts(), true)
 		);
 	}
 

@@ -107,17 +107,6 @@ class PostPagination_Configuration
 				Displaying records [+first_record+] thru [+last_record+] of [+record_count+]
 			</div>',
 		),
-		'media' => array (
-			'firstTpl'		=> '<span class="post_selector_pagination_link" onclick="javascript:change_page(0);">&laquo; First</span> &nbsp;',
-			'lastTpl' 		=> '&nbsp;<span class="post_selector_pagination_link" onclick="javascript:change_page([+page_number+]);" >Last &raquo;</span>',
-			'prevTpl' 		=> '<span class="post_selector_pagination_link" onclick="javascript:change_page([+page_number+]);">&lsaquo; Prev.</span>&nbsp;',
-			'nextTpl' 		=> '&nbsp;<span class="post_selector_pagination_link" onclick="javascript:change_page([+page_number+]);">Next &rsaquo;</span>',
-			'currentPageTpl'=> '&nbsp;<span class="post_selector_pagination_active_page">[+page_number+]</span>&nbsp;',
-			'pageTpl' 		=> '&nbsp;<span class="post_selector_pagination_link" title="[+page_number+]" onclick="javascript:change_page([+page_number+]);">[+page_number+]</span>&nbsp;',
-			'outerTpl' 		=> '<div id="pagination">[+content+]<br/>
-				Page [+current_page+] of [+page_count+]<br/>
-			</div>',
-		),
 	);
 
 	var $default = array('firstTpl' => 'nothing');  // What is this?

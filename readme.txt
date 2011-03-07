@@ -59,6 +59,10 @@ $results = $Q->get_posts();
 // ... format results
 print $Q->get_pagination_links(); // print the pagination links`
 
+Using *paginate="true"* inside of a shortcode will cause the pagination links to appear _after_ the posts, wrapped inside of a div: `<div class="summarize-posts-pagination-links">`
+
+See the _wp-content/plugins/summarize-posts/includes/PostPagination.conf.php_ for more information about customizing the format of the pagination.
+
 = I'm Having trouble getting the search results I want. What should I do? =
 
 There are some debugging options available.  If you are using the GetPostsQuery object directly, you can print the object for a list of helpful information:
