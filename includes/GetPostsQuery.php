@@ -258,8 +258,9 @@ class GetPostsQuery
 					break;
 				// ASC or DESC
 				case 'order':
-					$var = strtoupper($var);
-					if ( $var == 'ASC' || $var == 'DESC' )
+
+					$val = strtoupper($val);
+					if ( $val == 'ASC' || $val == 'DESC' )
 					{
 						$this->args[$var] = $val;
 					}
@@ -625,27 +626,6 @@ OFFSET 0
 	private function _get_sql()
 	{
 		global $wpdb; 
-		
-/*
-		$query = "SELECT "
-			. $select
-			. " FROM {$wpdb->posts} 
-			WHERE 
-				1"
-				. $this->_sql_filter_post_type()
-				. $this->_sql_filter_searchterm()
-				. $this->_sql_filter_post_mime_type()
-				. $this->_sql_filter_post_status()
-				. $this->_sql_filter_yearmonth()
-			. $this->_sql_filter_order_by()
-			. $this->_sql_limit_offset($limit)  
-			. $this->_sql_filter_offset($use_offset);
-{$wpdb->posts}
-
-SQL_CALC_FOUND_ROWS
-SELECT FOUND_ROWS();
-*/
-
 
 		$this->SQL = 
 			"SELECT 			
