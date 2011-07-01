@@ -346,6 +346,9 @@ class GetPostsQuery
 					break;
 				case 'taxonomy_slug':
 					$this->args[$var] = $this->_comma_separated_to_array($val,'alpha');
+					// print $val;
+					
+					//print_r($this->_comma_separated_to_array($val,'alpha')); exit;
 					break;
 				case 'search_columns':
 					$this->args[$var] = $this->_comma_separated_to_array($val,'search_columns');
@@ -417,51 +420,52 @@ class GetPostsQuery
 		{
 			return $output;
 		}
-		if ( !is_array($input) )
+		if ( is_array($input) )
 		{
-			$output = explode(',',$input);
+			$output = $input;
+
 		}
 		else
 		{
-			$output = $input;
+			$output = explode(',',$input);			
 		}
 
-		foreach ($output as &$i)
+		foreach ($output as $i => $item)
 		{
-			$i = trim($i);
+			$output[$i] = trim($item);
 			switch ($type)
 			{
 				case 'integer':
-					$i = (int) $i;
+					$output[$i] = (int) $item;
 					break;
 				// Only a-z, _, - is allowed.
 				case 'alpha':
-					if ( !preg_match('/[a-z_\-]/i', $i) )
+					if ( !preg_match('/[a-z_\-]/i', $item) )
 					{
-						$this->errors[] = __('Invalid alpha input:') . $i;
+						$this->errors[] = __('Invalid alpha input:') . $item;
 					}
 					break;
 				case 'post_type':
-					if ( !post_type_exists($i) )
+					if ( !post_type_exists($item) )
 					{
-						$this->errors[] = __('Invalid post_type:') . $i . ' '. print_r($this->registered_post_types, true);
+						$this->errors[] = __('Invalid post_type:') . $item . ' '. print_r($this->registered_post_types, true);
 						
 					}
 					break;
 				case 'post_status':
-					if ( !in_array($i, array('inherit','publish','auto-draft')) )
+					if ( !in_array($item, array('inherit','publish','auto-draft')) )
 					{
-						$this->errors[] = __('Invalid post_status:') . $i;
+						$this->errors[] = __('Invalid post_status:') . $item;
 					}
 					break;
 				case 'search_columns':
-					if ( !in_array($i, $this->wp_posts_columns ) )
+					if ( !in_array($item, $this->wp_posts_columns ) )
 					{
-						$this->errors[] = __('Invalid search_column:') . $i;
+						$this->errors[] = __('Invalid search_column:') . $item;
 					}
 					break;
 				case 'no_tags':
-					$i = strip_tags($i);
+					$output[$i] = strip_tags($item);
 			}
 		}
 		
