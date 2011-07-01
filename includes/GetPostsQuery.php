@@ -335,6 +335,10 @@ class GetPostsQuery
 					{
 						$this->args[$var] = $val;
 					}
+					else 
+					{
+						$this->args[$var] = null;
+					}
 					break;
 				// The category_description() function adds <p> tags to the value.
 				case 'taxonomy_term':

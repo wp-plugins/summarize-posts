@@ -126,6 +126,10 @@ foreach ($results as $r) {
 
 == Changelog ==
 
+= 0.5.1 =
+
+* Fixed issue with specifying a taxonomy.
+
 = 0.5 =
 
 * Pagination support added.
