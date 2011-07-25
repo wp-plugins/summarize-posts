@@ -433,6 +433,7 @@ class GetPostsQuery
 		foreach ($output as $i => $item)
 		{
 			$output[$i] = trim($item);
+			$item = trim($item);
 			switch ($type)
 			{
 				case 'integer':
@@ -461,7 +462,7 @@ class GetPostsQuery
 				case 'search_columns':
 					if ( !in_array($item, $this->wp_posts_columns ) )
 					{
-						$this->errors[] = __('Invalid search_column:') . $item;
+						$this->errors[] = __('Invalid search_column:') .$item;
 					}
 					break;
 				case 'no_tags':
@@ -644,7 +645,7 @@ OFFSET 0
 			, parent.post_excerpt as 'parent_excerpt'
 			, author.display_name as 'author'
 			, thumbnail.ID as 'thumbnail_id'
-			, thumbnail.post_content as 'thumbnail_src'
+			, thumbnail.guid as 'thumbnail_src'
 			, metatable.metadata
 			
 			[+select_metasortcolumn+]
@@ -657,7 +658,7 @@ OFFSET 0
 			LEFT JOIN {$wpdb->terms} ON {$wpdb->terms}.term_id={$wpdb->term_taxonomy}.term_id
 			LEFT JOIN {$wpdb->postmeta} thumb_join ON {$wpdb->posts}.ID=thumb_join.post_id
 				AND thumb_join.meta_key='_thumbnail_id'
-			LEFT JOIN {$wpdb->posts} thumbnail ON thumbnail.ID=thumb_join.meta_key
+			LEFT JOIN {$wpdb->posts} thumbnail ON thumbnail.ID=thumb_join.meta_value
 			LEFT JOIN {$wpdb->postmeta} ON wp_posts.ID={$wpdb->postmeta}.post_id
 			LEFT JOIN
 			(
