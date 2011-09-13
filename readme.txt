@@ -71,7 +71,8 @@ There are some debugging options available.  If you are using the GetPostsQuery 
 $Q->post_title = 'My Title';
 $results = $Q->get_posts();
 
-print $Q; // <-- this prints debugging information`
+print $Q; // <-- this prints debugging information
+print $Q->debug(); // <-- or do it this way`
 
 You can also trigger this same information from a shortcode by using the 'help' attribute, e.g.
 `[summarize_posts help="1"]`

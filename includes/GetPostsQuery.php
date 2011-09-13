@@ -155,6 +155,7 @@ class GetPostsQuery
 		'taxonomy'		=> null, 	// category, post_tag (tag), or any custom taxonomy
 		'taxonomy_term'	=> null,	// comma-separated string or array. "term" is usually English
 		'taxonomy_slug'	=> null,	// comma-separated string or array. "slug" is usually lowercase, URL friendly ver. of "term"
+		'taxonomy_depth' => 1,		// how deep do we go? http://code.google.com/p/wordpress-summarize-posts/issues/detail?id=21
 		
 		// uses LIKE %matching%
 		'search_term'	=> '', // Don't use this with the above search stuff 
@@ -434,9 +435,9 @@ class GetPostsQuery
 					break;
 				case 'taxonomy_slug':
 					$this->args['taxonomy_slug'] = $this->_comma_separated_to_array($val,'alpha');
-					// print $val;
-					
-					//print_r($this->_comma_separated_to_array($val,'alpha')); exit;
+					break;
+				case 'taxonomy_depth':
+					$this->args['taxonomy_depth'] =(int) $val;
 					break;
 				case 'search_columns':
 					$this->args['search_columns'] = $this->_comma_separated_to_array($val,'search_columns');
@@ -499,6 +500,20 @@ class GetPostsQuery
     
     
 	//! Private Functions
+	//------------------------------------------------------------------------------
+	/**
+	 * If the user is doing a taxonomy-based search and they need to retrieve 
+	 * hierarchical data, then we follow the rabit hole down n levels as 
+	 * defined by taxonomy_depth, then we append the results to the taxonomy_terms
+	 * argument.
+	 *
+	 * See http://code.google.com/p/wordpress-summarize-posts/issues/detail?id=21
+	 *
+	 * @return none	: appends data to $this->args['taxonomy_terms']
+	 */
+	private function _append_children_taxonomies() {
+	
+	}
 	
 	//------------------------------------------------------------------------------
 	/**
@@ -555,10 +570,11 @@ class GetPostsQuery
 					}
 					break;
 				case 'search_columns':
-					if ( !in_array($item, $this->wp_posts_columns ) )
-					{
-						$this->errors[] = __('Invalid search_column:') .$item;
-					}
+					// Taking this on: http://code.google.com/p/wordpress-summarize-posts/issues/detail?id=27
+					//if ( !in_array($item, $this->wp_posts_columns ) )
+					//{
+					//	$this->errors[] = __('Invalid search_column:') .$item;
+					//}
 					break;
 				case 'no_tags':
 					$output[$i] = strip_tags($item);
@@ -1127,6 +1143,7 @@ OFFSET 0
 	}
 	
 	/*------------------------------------------------------------------------------
+	This function handles the criteria for searching based on a search term.
 	OUTPUT: string to be used in *the* main SQL query's WHERE clause.
 	Construct the part of the query for searching by name.
 	
@@ -1153,17 +1170,42 @@ OFFSET 0
 		$criteria = array();
 		foreach ( $this->args['search_columns'] as $c )
 		{
-			switch ($this->args['match_rule'])
-			{
-				case 'contains':
-					$criteria[] = $wpdb->prepare("{$wpdb->posts}.$c LIKE %s", '%'.$this->args['search_term'].'%');
-					break;
-				case 'starts_with':
-					$criteria[] = $wpdb->prepare("{$wpdb->posts}.$c LIKE %s", '%'.$this->args['search_term']);
-					break;
-				case 'ends_with':
-					$criteria[] = $wpdb->prepare("{$wpdb->posts}.$c LIKE %s", $this->args['search_term'].'%');
-					break;
+			// For standard columns in the wp_posts table
+			if ( in_array($c, $this->wp_posts_columns ) )
+			{				
+				switch ($this->args['match_rule'])
+				{
+					case 'contains':
+						$criteria[] = $wpdb->prepare("{$wpdb->posts}.$c LIKE %s", '%'.$this->args['search_term'].'%');
+						break;
+					case 'starts_with':
+						$criteria[] = $wpdb->prepare("{$wpdb->posts}.$c LIKE %s", '%'.$this->args['search_term']);
+						break;
+					case 'ends_with':
+						$criteria[] = $wpdb->prepare("{$wpdb->posts}.$c LIKE %s", $this->args['search_term'].'%');
+						break;
+				}
+			}
+			// For custom field "columns" in the wp_postmeta table
+			else {
+				switch ($this->args['match_rule'])
+				{
+					case 'contains':
+						$criteria[] = $wpdb->prepare("{$wpdb->postmeta}.meta_key = %s AND {$wpdb->postmeta}.meta_value LIKE %s"
+							, $c
+							, '%'.$this->args['search_term'].'%');
+						break;
+					case 'starts_with':
+						$criteria[] = $wpdb->prepare("{$wpdb->postmeta}.meta_key = %s AND {$wpdb->postmeta}.meta_value LIKE %s"
+							, $c
+							, '%'.$this->args['search_term']);
+						break;
+					case 'ends_with':
+						$criteria[] = $wpdb->prepare("{$wpdb->postmeta}.meta_key = %s AND {$wpdb->postmeta}.meta_value LIKE %s"
+							,$c
+							, $this->args['search_term'].'%');
+						break;
+				}			
 			}
 		}
 		
@@ -1422,6 +1464,15 @@ OFFSET 0
 		// specific bits of the query, e.g. the OFFSET parameter.
 		$this->_override_args_with_url_params(); 
 
+		// if we are doing hierarchical queries, we need to trace down all the components before 
+		// we do our query!
+		if ( $this->args['taxonomy']
+			&& ($this->args['taxonomy_term'] || $this->args['taxonomy_slug'])
+			&& ($this->args['taxonomy_depth'] > 1 || $this->args['taxonomy_depth'] == 0)) {
+			$this->_append_children_taxonomies();
+		}
+		
+		
 		// ARRAY_A or OBJECT
 		$results = $wpdb->get_results( $this->_get_sql(), $this->output_type );
 				
