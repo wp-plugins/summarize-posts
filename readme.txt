@@ -126,6 +126,10 @@ foreach ($results as $r) {
 
 == Changelog ==
 
+= 0.7 =
+
+Lots of fixes, including the (repaired) ability to sort on custom fields, set the date format, better debugging messages, implementation of the set_default() method.
+
 = 0.6 =
 
 * Fixed issue with specifying a taxonomy.
