@@ -129,7 +129,14 @@ foreach ($results as $r) {
 
 = 0.7 =
 
-Lots of fixes, including the (repaired) ability to sort on custom fields, set the date format, better debugging messages, implementation of the set_default() method.
+Lots of fixes and improvements! And a new logo!
+
+* Repaired ability to sort on custom fields
+* Implemented ability to manipulate the date format
+* Implemented ability to use custom fields in date filters (date_min, date_max)
+* Better debugging messages
+* Implementation of the set_default() method.  
+* Support for searches on hierarchical taxonomies.
 
 = 0.6 =
 

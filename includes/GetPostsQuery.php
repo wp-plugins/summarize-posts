@@ -376,8 +376,7 @@ class GetPostsQuery
 						$this->args[$var] = $val;
 					}
 					break;
-				// Date formats (see http://php.net/manual/en/function.date.php)
-				// this supports some short-hand
+				// Date formats, some short-hand (see http://php.net/manual/en/function.date.php)
 				case 'date_format':
 					switch($val) {
 						case '1': // e.g. March 10, 2011, 5:16 pm
@@ -420,6 +419,7 @@ class GetPostsQuery
 					
 				// Taxonomies
 				case 'taxonomy':
+					// die('--->'.$val);
 					if ( taxonomy_exists($val) )
 					{
 						$this->args['taxonomy'] = $val;
@@ -504,15 +504,57 @@ class GetPostsQuery
 	/**
 	 * If the user is doing a taxonomy-based search and they need to retrieve 
 	 * hierarchical data, then we follow the rabit hole down n levels as 
-	 * defined by taxonomy_depth, then we append the results to the taxonomy_terms
+	 * defined by taxonomy_depth, then we append the results to the $this->args['taxonomy_term']
 	 * argument.
 	 *
 	 * See http://code.google.com/p/wordpress-summarize-posts/issues/detail?id=21
 	 *
-	 * @return none	: appends data to $this->args['taxonomy_terms']
+	 * @param	array	taxonomy_terms that we want to follow down for their children terms
+	 * @return array	inital taxonomy_terms and their children (to the nth degree as def'd by taxonomy_depth) 
 	 */
-	private function _append_children_taxonomies() {
-	
+	private function _append_children_taxonomies($all_terms_array) {
+		
+		global $wpdb;
+
+		// We start with the parent terms...
+		$parent_terms_array = $all_terms_array;
+		
+		for ( $i= 1; $i <= $this->args['taxonomy_depth']; $i++ ) {
+			$terms = ''; 
+			foreach ($parent_terms_array as &$t)
+			{
+				$t = $wpdb->prepare('%s', $t);
+			}
+			
+			$terms = '('. implode(',',$parent_terms_array) . ')';
+		
+			$query = $wpdb->prepare("SELECT {$wpdb->terms}.name
+				FROM 
+				{$wpdb->terms} JOIN {$wpdb->term_taxonomy} ON {$wpdb->terms}.term_id={$wpdb->term_taxonomy}.term_id
+				WHERE 
+				{$wpdb->term_taxonomy}.parent IN (
+					SELECT {$wpdb->terms}.term_id 
+					FROM {$wpdb->terms} 
+					JOIN {$wpdb->term_taxonomy} ON {$wpdb->terms}.term_id={$wpdb->term_taxonomy}.term_id
+					WHERE wp_terms.name IN $terms
+					AND {$wpdb->term_taxonomy}.taxonomy=%s
+				)", $this->args['taxonomy']);
+				
+			$results = $wpdb->get_results( $query, ARRAY_A );
+			
+			if ( empty($restuls) ) {
+				break; // if there are no results, then we've traced this out.
+			}
+			
+			$parent_terms_array = array(); // <-- reset this thing for the next iteration
+			foreach($results as $r) {
+				$all_terms_array[] = $r['name']; // append
+				$parent_terms_array[] = $r['name']; // and set this for the next generation
+			}
+		}
+		
+		return array_unique($all_terms_array);
+					
 	}
 	
 	//------------------------------------------------------------------------------
@@ -571,10 +613,11 @@ class GetPostsQuery
 					break;
 				case 'search_columns':
 					// Taking this on: http://code.google.com/p/wordpress-summarize-posts/issues/detail?id=27
-					//if ( !in_array($item, $this->wp_posts_columns ) )
-					//{
-					//	$this->errors[] = __('Invalid search_column:') .$item;
-					//}
+					if ( !preg_match('/[a-z_0-9]/i', $item) )
+					{
+						$this->errors[] = __('Invalid column name. Column names may only contain alphanumeric characters and underscores: ') . $item;
+					}
+
 					break;
 				case 'no_tags':
 					$output[$i] = strip_tags($item);
@@ -680,8 +723,6 @@ class GetPostsQuery
 			$date = $datetime; 
 		}
 		
-		
-		//print $date . '<<<<'; exit;
 		if ( !$this->_is_date($date) )
 		{
 			return false;
@@ -694,7 +735,7 @@ class GetPostsQuery
 		$time_format = 'H:i:s';
 		$unixtime = strtotime($time);
 		$converted_time =  date($time_format, $unixtime);
-		//print $converted_time . '<-----------'; exit;
+
 		if ( $converted_time != $time ) {
 			 return false;		
 		}
@@ -786,67 +827,7 @@ class GetPostsQuery
 	You can't use the WP query_posts() function here because the global $wp_the_query
 	isn't defined yet.  get_posts() works, however, but its format is kinda whack.  
 	Jeezus H. Christ. Crufty ill-defined API functions.
-	http://shibashake.com/wordpress-theme/wordpress-query_posts-and-get_posts
-
-
-
-SELECT 
-wp_posts.*
-, parent.ID as 'parent_ID'
-, parent.post_title as 'parent_post_title'
-, author.display_name as 'author'
-, thumbnail.ID as 'thumbnail_id'
-, thumbnail.post_content as 'thumbnail_src'
-, metatable.metadata
-
-FROM wp_posts wp_posts
-LEFT JOIN wp_posts parent ON wp_posts.ID=parent.post_parent
-LEFT JOIN wp_users author ON wp_posts.post_author=author.ID
-LEFT JOIN wp_term_relationships ON wp_posts.ID=wp_term_relationships.object_id 
-LEFT JOIN wp_term_taxonomy ON wp_term_taxonomy.term_taxonomy_id=wp_term_relationships.term_taxonomy_id
-LEFT JOIN wp_terms ON wp_terms.term_id=wp_term_taxonomy.term_id
-LEFT JOIN wp_postmeta thumb_join ON wp_posts.ID=thumb_join.post_id
-	AND thumb_join.meta_key='_thumbnail_id'
-LEFT JOIN wp_posts thumbnail ON thumbnail.ID=thumb_join.meta_key
-LEFT JOIN wp_postmeta ON wp_posts.ID=wp_postmeta.post_id
--- a big mess of metadata here:
-LEFT JOIN
-(
-	SELECT
-	wp_postmeta.post_id, 
-	GROUP_CONCAT( CONCAT(wp_postmeta.meta_key,'<!--COLON-->', wp_postmeta.meta_value) SEPARATOR '<!--COMMA-->') as metadata
-	FROM wp_postmeta
-	GROUP BY wp_postmeta.post_id
-) metatable ON wp_posts.ID=metatable.post_id
-WHERE
-1
-AND wp_posts.post_type != 'revision'
-
--- AND wp_posts.post_title = 'About'
--- AND DATE_FORMAT(wp_posts.post_modified, '%Y%m') = '201102'
--- AND wp_postmeta.meta_key = 'yarn'
--- AND wp_postmeta.meta_value = 'nada'
--- AND author.display_name = 'fireproofsocks'
--- AND DATE(wp_posts.post_date) = '2010-11-13'
--- AND DATE(wp_posts.post_modified) = '2010-11-13'
--- AND wp_term_taxonomy.taxonomy='post_tag'
--- AND wp_terms.name='star wars'
--- AND wp_terms.slug='uncategorized'
-AND (
-	wp_posts.post_title LIKE '%elcom%'
-	OR
-	wp_posts.post_content LIKE '%elcom%'
-	OR 
-	wp_postmeta.meta_value LIKE '%elcom%'
-)
-
-AND wp_posts.post_modified >= '2010-11-13'
-AND wp_posts.post_modified <= '2011-02-15'
-GROUP BY wp_posts.ID
-ORDER BY wp_posts.ID DESC
-LIMIT 10 
-OFFSET 0
-	
+	http://shibashake.com/wordpress-theme/wordpress-query_posts-and-get_posts	
 	------------------------------------------------------------------------------*/
 	private function _get_sql()
 	{
@@ -1034,7 +1015,6 @@ OFFSET 0
 	//------------------------------------------------------------------------------
 	/**
 	 * Used when the date_column is set to something that's a custom field
-	 *
 	 */
 	private function _sql_custom_date_filter($date_value, $operation='=')
 	{
@@ -1092,7 +1072,7 @@ OFFSET 0
 	}
 
 	/*------------------------------------------------------------------------------
-	OUTPUT: string to be used in *the* main SQL query's LIMIT/OFFSET clause
+	OUTPUT: string to be used in the main SQL query's LIMIT/OFFSET clause.
 	$limit should be passed in as $this->results_per_page; (like when you're selecting
 	rows) or as zero (like when you're counting rows).
 	------------------------------------------------------------------------------*/
@@ -1110,7 +1090,7 @@ OFFSET 0
 
 
 	/*------------------------------------------------------------------------------
-	OUTPUT: string to be used in *the* main SQL query's LIMIT/OFFSET clause
+	OUTPUT: string to be used in the main SQL query's LIMIT/OFFSET clause
 	------------------------------------------------------------------------------*/
 	private function _sql_offset()
 	{
@@ -1125,7 +1105,7 @@ OFFSET 0
 	}
 	
 	/*------------------------------------------------------------------------------
-	OUTPUT: string to be used in *the* main SQL query's WHERE clause.
+	OUTPUT: string to be used in the main SQL query's WHERE clause.
 	Construct the part of the query for searching by mime type
 	------------------------------------------------------------------------------*/
 	private function _sql_filter_post_mime_type()
@@ -1144,7 +1124,7 @@ OFFSET 0
 	
 	/*------------------------------------------------------------------------------
 	This function handles the criteria for searching based on a search term.
-	OUTPUT: string to be used in *the* main SQL query's WHERE clause.
+	OUTPUT: string to be used in the main SQL query's WHERE clause.
 	Construct the part of the query for searching by name.
 	
 				AND (
@@ -1217,7 +1197,7 @@ OFFSET 0
 
 	
 	/*------------------------------------------------------------------------------
-	OUTPUT: string to be used in *the* main SQL query.  This function is called 
+	OUTPUT: string to be used in the main SQL query.  This function is called 
 	in distinction to the _sql_select_columns() when the purpose of the query is
 	to count available rows (e.g. for paginating results).
 	------------------------------------------------------------------------------*/
@@ -1228,7 +1208,7 @@ OFFSET 0
 	
 	/*------------------------------------------------------------------------------
 	Which columns do we normally return? 
-	OUTPUT: string to be used in *the* main SQL query: this string defines which
+	OUTPUT: string to be used in the main SQL query: this string defines which
 	columns we will select.
 	------------------------------------------------------------------------------*/
 	private function _sql_select_columns()
@@ -1242,7 +1222,7 @@ OFFSET 0
 	
 	
 	/*------------------------------------------------------------------------------
-	OUTPUT: string to be used in *the* main SQL query.  This function is called 
+	OUTPUT: string to be used in the main SQL query.  This function is called 
 	in distinction to the _sql_select_columns() when the purpose of the query is
 	to return distinct year-months of posts for the purposes of offering the user
 	simple date-based groups of posts. 
@@ -1268,11 +1248,10 @@ OFFSET 0
 	
 	//------------------------------------------------------------------------------
 	/**
-	* 
-		AND wp_postmeta.meta_key = 'yarn'
-		AND wp_postmeta.meta_value = 'nada'
-
-	*/
+	 * Used to search for custom fields.
+	 *	AND wp_postmeta.meta_key = 'yarn'
+	 *	AND wp_postmeta.meta_value = 'nada'
+	 */
 	private function _sql_meta()
 	{
 		global $wpdb;
@@ -1296,28 +1275,7 @@ OFFSET 0
 			return $this->_sql_filter($wpdb->postmeta,'meta_value','=', $this->args['meta_value']);
 		}
 	}
-
-	//------------------------------------------------------------------------------
-	/**
-	* See http://codex.wordpress.org/Function_Reference/wp_insert_post
-	*/
-	private function _log_post($post)
-	{
-		$my_post = array(
-			'post_title' => 'My post',
-			'post_content' => 'This is my post.',
-			'post_status' => 'draft',
-			'post_type'	=> 'summarize_post_log',
-			'post_author' => 1,
-		);
-		
-		// Insert the post into the database
-		wp_insert_post( $my_post );
-	}
 	
-	
-
-
 	//! Public Functions
 	//------------------------------------------------------------------------------
 	/**
@@ -1363,7 +1321,6 @@ OFFSET 0
 		return $output;
 	}
 	
-	
 	//------------------------------------------------------------------------------
 	/**
 	* Format any errors in an unordered list, or returns a message saying there were no errors.
@@ -1391,8 +1348,8 @@ OFFSET 0
 
 	//------------------------------------------------------------------------------
 	/**
-	* Returns a string of a comparable shortcode for the query entered.
-	*/
+	 * Returns a string of a comparable shortcode for the query entered.
+	 */
 	public function get_comparable_shortcode()
 	{
 		$args = array();
@@ -1419,9 +1376,9 @@ OFFSET 0
 	
 	//------------------------------------------------------------------------------
 	/**
-	* http://www.webcheatsheet.com/PHP/get_current_page_url.php
-	* This uses wp_kses() to reduce risk of some a-hole 
-	*/
+	 * http://www.webcheatsheet.com/PHP/get_current_page_url.php
+	 * This uses wp_kses() to reduce risk of some a-hole 
+	 */
 	static function get_current_page_url() 
 	{
 		//print_r($_SERVER); exit;
@@ -1466,10 +1423,11 @@ OFFSET 0
 
 		// if we are doing hierarchical queries, we need to trace down all the components before 
 		// we do our query!
+
 		if ( $this->args['taxonomy']
 			&& ($this->args['taxonomy_term'] || $this->args['taxonomy_slug'])
-			&& ($this->args['taxonomy_depth'] > 1 || $this->args['taxonomy_depth'] == 0)) {
-			$this->_append_children_taxonomies();
+			&& $this->args['taxonomy_depth'] > 1) {
+			$this->args['taxonomy_term'] = $this->_append_children_taxonomies($this->args['taxonomy_term']);
 		}
 		
 		
@@ -1627,13 +1585,13 @@ OFFSET 0
 
 	//------------------------------------------------------------------------------
 	/**
-	* This sets a default value for any field.  This should kick in only if the 
-	* field is empty when we normalize the recordset in the _normalize_recordset
-	* function
-	*
-	* @param	string	$fieldname name of the field whose default value you want to set
-	* @param	string	the value to set the attribute to
-	*/
+	 * This sets a default value for any field.  This should kick in only if the 
+	 * field is empty when we normalize the recordset in the _normalize_recordset
+	 * function
+	 *
+	 * @param	string	$fieldname name of the field whose default value you want to set
+	 * @param	string	the value to set the attribute to
+	 */
 	public function set_default($fieldname, $value)
 	{
 		self::$custom_default_values[(string)$fieldname] = (string) $value;
@@ -1641,8 +1599,9 @@ OFFSET 0
 
 	//------------------------------------------------------------------------------
 	/**
-	* 
-	*/
+	 * Sets how we return our record set: either as an array of objects or as an 
+	 * array of associative arrays. 
+	 */
 	public function set_output_type($output_type)
 	{
 		if ( $output_type != OBJECT && $output_type != ARRAY_A )

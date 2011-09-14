@@ -13,7 +13,7 @@
 	$my_dir = WP_PLUGIN_URL.'/'. basename(dirname(dirname(__FILE__)));
 	?>
 
-	<h2><img src="<?php print $my_dir; ?>/images/summarize-posts-logo.jpg" alt="summarize-posts-logo" width="120" height="55" /> Summarize Posts Administration</h2>
+	<h2><img src="<?php print $my_dir; ?>/images/summarize-posts-logo.jpg" alt="summarize-posts-logo" width="104" height="56" /> Summarize Posts Administration</h2>
 	
 	<?php print $msg; ?>
 
