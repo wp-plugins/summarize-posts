@@ -1331,15 +1331,18 @@ class GetPostsQuery
 		$args = array();
 		foreach ($this->args as $k => $v)
 		{
-			if ( !empty($v) )
-			{
-				if ( is_array($v) )
+			// Only include info if it's not the default... save space
+			if (self::$defaults[$k] != $v) {
+				if ( !empty($v) )
 				{
-					$args[] = $k.'="'.implode(',',$v).'"';
-				}
-				else
-				{
-					$args[] = $k.'="'.$v.'"';
+					if ( is_array($v) )
+					{
+						$args[] = $k.'="'.implode(',',$v).'"';
+					}
+					else
+					{
+						$args[] = $k.'="'.$v.'"';
+					}
 				}
 			}
 		}
