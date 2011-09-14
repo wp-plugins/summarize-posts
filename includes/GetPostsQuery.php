@@ -241,47 +241,7 @@ class GetPostsQuery
 	*/
 	public function __toString() 
 	{
-		if ( empty($this->SQL) ) {
-			$this->SQL = $this->_get_sql();
-		}
-		
-		return sprintf(
-			'<div class="summarize-posts-summary">
-				<h1>Summarize Posts</h1>
-
-				<h2>%s</h2>
-				<p>%s</p>
-					<div class="summarize-post-arguments">%s</div>
-
-				<h2>%s</h2>
-					<div class="summarize-post-output_type">%s</div>
-					
-				<h2>%s</h2>
-					<div class="summarize-posts-query"><textarea rows="20" cols="80">%s</textarea></div>
-					
-				<h2>%s</h2>
-					<div class="summarize-posts-errors">%s</div>
-				
-				<h2>%s</h2>
-					<div class="summarize-posts-shortcode"><textarea rows="3" cols="80">%s</textarea></div>
-					
-				<h2>%s</h2>
-					<div class="summarize-posts-results"><textarea rows="20" cols="80">%s</textarea></div>
-			</div>'
-			, __('Arguments', SummarizePosts::txtdomain)
-			, __('For more information on how to use this function, see the documentation for the <a href="http://code.google.com/p/wordpress-summarize-posts/wiki/get_posts">GetPostsQuery::get_posts()</a> function.', SummarizePosts::txtdomain)
-			, $this->format_args()
-			, __('Output Type', SummarizePosts::txtdomain)
-			, $this->output_type
-			, __('Raw Database Query, SummarizePosts::txtdomain')
-			, $this->SQL
-			, __('Errors', SummarizePosts::txtdomain)
-			, $this->format_errors()
-			, __('Comparable Shortcode', SummarizePosts::txtdomain)
-			, $this->get_comparable_shortcode()
-			, __('Results', SummarizePosts::txtdomain)
-			, print_r( $this->get_posts(), true)
-		);
+		return $this->debug();
 	}
 
 	//------------------------------------------------------------------------------
@@ -1282,14 +1242,54 @@ class GetPostsQuery
 	 * Debugging messages.  Same as printing the GetPostsQuery instance.
 	 */
 	public function debug() {
-		return $this->__toString();
+		if ( empty($this->SQL) ) {
+			$this->SQL = $this->_get_sql();
+		}
+		
+		return sprintf(
+			'<div class="summarize-posts-summary">
+				<h1>Summarize Posts</h1>
+
+				<h2>%s</h2>
+					<div class="summarize-posts-errors">%s</div>
+
+				<h2>%s</h2>
+				<p>%s</p>
+					<div class="summarize-post-arguments">%s</div>
+
+				<h2>%s</h2>
+					<div class="summarize-post-output_type">%s</div>
+					
+				<h2>%s</h2>
+					<div class="summarize-posts-query"><textarea rows="20" cols="80">%s</textarea></div>
+									
+				<h2>%s</h2>
+					<div class="summarize-posts-shortcode"><textarea rows="3" cols="80">%s</textarea></div>
+					
+				<h2>%s</h2>
+					<div class="summarize-posts-results"><textarea rows="20" cols="80">%s</textarea></div>
+			</div>'
+			, __('Errors', SummarizePosts::txtdomain)
+			, $this->get_errors()
+			, __('Arguments', SummarizePosts::txtdomain)
+			, __('For more information on how to use this function, see the documentation for the <a href="http://code.google.com/p/wordpress-summarize-posts/wiki/get_posts">GetPostsQuery::get_posts()</a> function.', SummarizePosts::txtdomain)
+			, $this->get_args()
+			, __('Output Type', SummarizePosts::txtdomain)
+			, $this->output_type
+			, __('Raw Database Query', SummarizePosts::txtdomain)
+			, $this->SQL
+			, __('Comparable Shortcode', SummarizePosts::txtdomain)
+			, $this->get_comparable_shortcode()
+			, __('Results', SummarizePosts::txtdomain)
+			, print_r( $this->get_posts(), true)
+		);
 	}
 	
 	//------------------------------------------------------------------------------
 	/**
 	* Prints a formatted version of filtered input arguments. 
 	*/
-	public function format_args()
+	public function get_args()
 	{
 		$output = '<ul class="summarize-posts-argument-list">'."\n";
 		#print_r($this->args); exit;
@@ -1321,30 +1321,6 @@ class GetPostsQuery
 		return $output;
 	}
 	
-	//------------------------------------------------------------------------------
-	/**
-	* Format any errors in an unordered list, or returns a message saying there were no errors.
-	*/
-	public function format_errors()
-	{
-
-		if ($this->errors)
-		{
-			$output = '';
-			$items = '';
-			foreach ($this->errors as $e)
-			{
-				$items .= '<li>'.$e.'</li>' ."\n";
-			}
-			$output = '<ul>'."\n".$items.'</ul>'."\n";
-			return $output;
-		}
-		else
-		{
-			return __('There were no errors.');
-		}	
-		
-	}
 
 	//------------------------------------------------------------------------------
 	/**
@@ -1381,12 +1357,35 @@ class GetPostsQuery
 	 */
 	static function get_current_page_url() 
 	{
-		//print_r($_SERVER); exit;
 		if ( isset($_SERVER['REQUEST_URI']) ) 
 		{
 			$_SERVER['REQUEST_URI'] = preg_replace('/&?offset=[0-9]*/','', $_SERVER['REQUEST_URI']);
 		}
 		return wp_kses($_SERVER['REQUEST_URI'], '');
+	}
+
+	//------------------------------------------------------------------------------
+	/**
+	* Format any errors in an unordered list, or returns a message saying there were no errors.
+	*/
+	public function get_errors()
+	{
+
+		if ($this->errors)
+		{
+			$output = '';
+			$items = '';
+			foreach ($this->errors as $e)
+			{
+				$items .= '<li>'.$e.'</li>' ."\n";
+			}
+			$output = '<ul>'."\n".$items.'</ul>'."\n";
+			return $output;
+		}
+		else
+		{
+			return __('There were no errors.');
+		}			
 	}
 	
 	//------------------------------------------------------------------------------
@@ -1550,13 +1549,21 @@ class GetPostsQuery
 
 		$results = $this->_normalize_recordset($results);
 
-		// Adjust date format (optionally, depends on the 'date_format' option)
+		// Optionally adjust date format (depends on the 'date_format' option)
 		$results = $this->_date_format($results);
 		
 		return $results;
 
 	}
 
+	//------------------------------------------------------------------------------
+	/**
+	 * Gets the raw SQL query
+	 * @return string
+	 */
+	public function get_sql() {
+		return $this->SQL;
+	}
 	//------------------------------------------------------------------------------
 	/**
 	SYNOPSIS: a simple parsing function for basic templating.

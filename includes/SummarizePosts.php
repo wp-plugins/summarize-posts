@@ -135,6 +135,8 @@ class SummarizePosts
 	*/
 	public static function get_admin_page()
 	{
+		$msg = '';
+		
 		if ( !empty($_POST) && check_admin_referer('summarize_posts_options_update','summarize_posts_admin_nonce') )
 		{
 			$new_values = array();
