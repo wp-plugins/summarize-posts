@@ -8,6 +8,7 @@ avoid the headaches caused from name pollution as much as possible.
 
 // Required Files	
 include_once('includes/GetPostsQuery.php');
+include_once('includes/GetPostsForm.php');
 include_once('includes/SummarizePosts.php');
 include_once('tests/SummarizePostsTests.php');
 

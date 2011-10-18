@@ -124,10 +124,10 @@ class GetPostsQuery
 		
 		// Direct searches (mostly by direct column matches)
 		'post_type'			=> '',			// comma-sparated string or array
-		'omit_post_type'	=> 'revision',	// comma-sparated string or array
+		'omit_post_type'	=> array('revision'),	// comma-sparated string or array
 		'post_mime_type' 	=> '', 			// comma-sparated string or array
 		'post_parent'		=> '',			// comma-sparated string or array 
-		'post_status' 		=> 'publish',	// comma-sparated string or array
+		'post_status' 		=> array('publish'),	// comma-sparated string or array
 		'post_title'		=> '', 			// for exact match
 		'author'			=> '', 			// search by author's display name
 		'post_date'			=> '',			// matches YYYY-MM-DD.
@@ -138,7 +138,7 @@ class GetPostsQuery
 		'date_min'		=> '', 				// YYYY-MM-DD (optionally include the time)
 		'date_max'		=> '',				// YYYY-MM-DD (optionally include the time)
 		
-		// Specify the desired date format to be used in the output of the following date collumns:
+		// Specify the desired date format to be used in the output of the following date columns:
 		// post_date, post_date_gmt, post_modified, post_modified_gmt
 		// The default is the standard MySQL YYYY-MM-DD.
 		// Internally, the native YYYY-MM-DD is used.
@@ -149,6 +149,7 @@ class GetPostsQuery
 		// 'd MM, y'
 		// 'DD, d MM, yy'
 		// 'day' d 'of' MM 'in the year' yy
+		// or write in your own value.
 		'date_format'	=> null,
 		
 		// Search by Taxonomies
@@ -159,7 +160,7 @@ class GetPostsQuery
 		
 		// uses LIKE %matching%
 		'search_term'	=> '', // Don't use this with the above search stuff 
-		'search_columns' => 'post_title, post_content', // comma-sparated string or array or more one of the following columns; if not one of the post columns, this will search the meta columns.
+		'search_columns' => array('post_title', 'post_content'), // comma-sparated string or array or more one of the following columns; if not one of the post columns, this will search the meta columns.
 		
 		// Global complicated stuff
 		'join_rule'		=> 'AND', // AND | OR. You can set this to OR if you really know what you're doing. Defines how the WHERE criteria are joined.
@@ -200,11 +201,13 @@ class GetPostsQuery
 		$this->output_type = SummarizePosts::$options['output_type'];
 		
 		$tmp = shortcode_atts( self::$defaults, $raw_args );
+
 		// Run these through the filters in __set()
 		foreach ( $tmp as $k => $v )
 		{
 			$this->__set($k, $v);
 		}
+
 	}
 	
 	//------------------------------------------------------------------------------
@@ -1106,7 +1109,7 @@ class GetPostsQuery
 		{
 			return '';
 		}
-		
+
 		$criteria = array();
 		foreach ( $this->args['search_columns'] as $c )
 		{
@@ -1279,7 +1282,7 @@ class GetPostsQuery
 			, __('Raw Database Query', SummarizePosts::txtdomain)
 			, $this->SQL
 			, __('Comparable Shortcode', SummarizePosts::txtdomain)
-			, $this->get_comparable_shortcode()
+			, $this->get_shortcode()
 			, __('Results', SummarizePosts::txtdomain)
 			, print_r( $this->get_posts(), true)
 		);
@@ -1326,13 +1329,19 @@ class GetPostsQuery
 	/**
 	 * Returns a string of a comparable shortcode for the query entered.
 	 */
-	public function get_comparable_shortcode()
+	public function get_shortcode()
 	{
 		$args = array();
 		foreach ($this->args as $k => $v)
 		{
-			// Only include info if it's not the default... save space
-			if (self::$defaults[$k] != $v) {
+			// Only include info if it's not the default... save space and easier to read shortcodes
+			if (self::$defaults[$k] != $v ) { // && (!empty(self::$defaults[$k]) && !empty($v))) {
+				if ($k == 'omit_post_type') {
+					print "Value: $k<br/>";
+					print 'default: '; print_r(self::$defaults[$k]); print "<br/>";
+					print 'incoming: '; print_r($v);
+					exit;
+				}
 				if ( !empty($v) )
 				{
 					if ( is_array($v) )
@@ -1401,6 +1410,25 @@ class GetPostsQuery
 		return $this->pagination_links;
 	}
 
+	//------------------------------------------------------------------------------
+	/**
+	 * Retrieves a single post by its post ID. The output format here is dictated by
+	 * the set_output_type() function (ARRAY_A or OBJECT).  This function is a 
+	 * convenience function accessor to the get_posts() function.
+	 * 
+	 * @param	integer	post ID of the post to be fetched
+	 * @return	mixed	either an OBJECT or ARRAY_A representing the post
+	 */
+	public function get_post($id) {
+	
+		$post = $this->get_posts(array('ID' => (int) $id ));
+		if (!empty($post) ) {
+			return $post[0]; // return first post
+		}
+		
+		return null;
+	}
+	
 	//------------------------------------------------------------------------------
 	/**
 	 * This is the main event, where all the action leads.  This is what generates 
@@ -1488,7 +1516,9 @@ class GetPostsQuery
 				
 				$r->permalink		= get_permalink( $r->ID );
 				$r->parent_permalink	= get_permalink( $r->parent_ID );
+				// See http://stackoverflow.com/questions/3602941/why-isnt-apply-filterthe-content-outputting-anything
 				// $r->the_content 	= get_the_content(); // only works inside the !@#%! loop
+				$r->the_content 	= apply_filters('the_content', $r->post_content);
 				$r->content 		= $r->post_content;
 				//$r['the_author']	->= get_the_author(); // only works inside the !@#%! loop
 				$r->title 			= $r->post_title;
@@ -1537,7 +1567,9 @@ class GetPostsQuery
 				
 				$r['permalink']		= get_permalink( $r['ID'] );
 				$r['parent_permalink']	= get_permalink( $r['parent_ID'] );
+				// See http://stackoverflow.com/questions/3602941/why-isnt-apply-filterthe-content-outputting-anything
 				// $r['the_content'] 	= get_the_content(); // only works inside the !@#%! loop
+				$r['the_content'] 	= apply_filters('the_content', $r['post_content']);				
 				$r['content'] 		= $r['post_content'];
 				//$r['the_author']	= get_the_author(); // only works inside the !@#%! loop
 				$r['title'] 		= $r['post_title'];

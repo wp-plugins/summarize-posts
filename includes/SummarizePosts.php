@@ -244,8 +244,8 @@ class SummarizePosts
 	*/
 	public static function initialize()
 	{	
-		add_shortcode('summarize-posts', 'SummarizePosts::summarize');
-		add_shortcode('summarize_posts', 'SummarizePosts::summarize');
+		add_shortcode('summarize-posts', 'SummarizePosts::get_posts');
+		add_shortcode('summarize_posts', 'SummarizePosts::get_posts');
 	}
 
 	//------------------------------------------------------------------------------
@@ -424,6 +424,40 @@ class SummarizePosts
 
 		}
 	}
+	
+	//------------------------------------------------------------------------------
+	/**
+	 * This is the tie-into the GetPostsForm object: it returns (not prints) a form 
+	 * OR it handles form submissions and returns results.
+	 * @param	array
+	 * @return	string
+	 */
+	public static function search($args=array()) {
+		$Form = new GetPostsForm($args);
+		
+		$nonce = self::get_from_array($_POST, $Form->nonce_name);
+		// Draw the search form
+		if (empty($_POST)) {
+			return $Form->generate();
+		}
+		elseif (wp_verify_nonce($nonce, $Form->nonce_action) ) {
+			unset($_POST[$Form->nonce_name]);
+			unset($_POST['_wp_http_referer']);
+			$search_args = array();
+			foreach($_POST as $k => $v)
+			{
+				// Strip the prefix
+				$new_key = preg_replace('/^'.$Form->name_prefix.'/', '', $k);
+				$search_args[$new_key] = $v;
+			}
+
+			return self::get_posts($search_args);
+		}
+		else {
+			return "Invalid Submission.";
+		}		
+	}
+	
 	//------------------------------------------------------------------------------
 	/**
 	*
@@ -564,7 +598,7 @@ Convenience:
 ;
 
 	*/
-	public static function summarize($raw_args=array(), $content_tpl = null)
+	public static function get_posts($raw_args=array(), $content_tpl = null)
 	{	
 		$formatting_args = shortcode_atts( self::$formatting_defaults, $raw_args );
 

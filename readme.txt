@@ -3,8 +3,9 @@ Contributors: fireproofsocks
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=355ULXBFXYL8N
 Tags: 
 Requires at least: 3.0.1
-Tested up to: 3.1.4
+Tested up to: 3.2.1
 Stable tag: 0.7
+Version: 0.8-dev
 
 Offers highly flexible alternatives to WordPress' built-in get_posts() function, including the ability to paginate results.
 
