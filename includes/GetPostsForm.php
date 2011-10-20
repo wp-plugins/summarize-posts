@@ -25,8 +25,30 @@ class GetPostsForm
 		'search_term'
 	);
 
+	public static $small = array();
+	public static $medium = array();
+	public static $large = array();
+	
+	/**
+	 * Full form: contains all search elements. Some attributes only are useful
+	 * when used programmatically.
+	 */
+	public static $full = array('limit', 'offset', 'orderby', 'order', 'include', 
+		'exclude', 'append', 'meta_key', 'meta_value', 'post_type', 'omit_post_type', 
+		'post_mime_type', 'post_parent', 'post_status', 'post_title', 'author', 'post_date', 
+		'post_modified', 'yearmonth', 'date_min', 'date_max', 'date_format', 'taxonomy', 
+		'taxonomy_term', 'taxonomy_slug', 'taxonomy_depth', 'search_term', 'search_columns', 
+		'join_rule', 'match_rule', 'date_column', 'paginate');
+	
+	
 	// Set @ __construct so we can localize the "Search" button.
 	public static $form_tpl;
+	
+	
+	/**
+	 * Stores any errors encountered for debugging purposes.
+	 */
+	public $errors = array();
 	
 	/*
 	 * This prefix is added before all form element names to avoid collisions
@@ -42,14 +64,19 @@ class GetPostsForm
 	public $nonce_name = 'sp_search';
 	
 	/**
+	 * Contains the localized message displayed if no results are found. Set @ instantiation.
+	 */
+	public $no_results_msg; 
+	
+	/**
 	 * Ultimately passed to the parse function, this contains an associative 
 	 * array. The key is the name of the placeholder, the value is what it will
 	 * get replaced with.
 	 */
 	public $placeholders = array();
 
-	// Any active properties 
-	public $props = array();
+	// Describes how we're going to search
+	public $search_by = array();
 
 	/**
 	 * Any valid key from GetPostsQuery (populated @ instantiation)
@@ -59,14 +86,19 @@ class GetPostsForm
 	//------------------------------------------------------------------------------
 	//! Magic Functions
 	//------------------------------------------------------------------------------
-	public function __construct($args=array()) {
+	public function __construct($search_by=array()) {
+		$this->no_results_msg = '<p>'. __('Sorry, no results matched your search criteria.',SummarizePosts::txtdomain) . '</p>';
+		
 		$this->valid_props = array_keys(GetPostsQuery::$defaults);
-		if (empty($args)) {
+		if (empty($search_by)) {
 			// push this through validation.
 			//foreach(self::$defaults as $k => $v) {
 			//	$this->__set($k, $v);
 			//}
-			$this->props = self::$defaults;
+			$this->search_by = self::$defaults;
+		}
+		else {
+			$this->search_by = $search_by;
 		}
 		
 		$this->nonce_field = wp_nonce_field($this->nonce_action, $this->nonce_name, true, false);
@@ -79,13 +111,13 @@ class GetPostsForm
 	
 	//------------------------------------------------------------------------------
 	/**
-	 * Interface with $this->props
+	 * Interface with $this->search_by
 	 */
 	public function __get($k)
 	{
-		if ( in_array($k, $this->props) )
+		if ( in_array($k, $this->search_by) )
 		{
-			return $this->props[$k];
+			return $this->search_by[$k];
 		}
 		else
 		{
@@ -100,23 +132,23 @@ class GetPostsForm
 	 */
 	public function __isset($k)
 	{
-		return isset($this->props[$k]);
+		return isset($this->search_by[$k]);
 	}
 	
 
 	//------------------------------------------------------------------------------
 	/**
-	 * Interface with $this->props
+	 * Interface with $this->search_by
 	 */
 	public function __unset($k) 
 	{
-		unset($this->props[$k]);
+		unset($this->search_by[$k]);
 	}
 	
 	//------------------------------------------------------------------------------
 	/**
 	* Validate and set parameters
-	* Interface with $this->props	
+	* Interface with $this->search_by	
 	* @param	string	$k for key
 	* @param	mixed	$v for value
 	*/
@@ -124,7 +156,7 @@ class GetPostsForm
 	{
 		if (in_array($k, $this->valid_props)) 
 		{
-			$this->props[$k] = $v;
+			$this->search_by[$k] = $v;
 		}
 		else
 		{
@@ -312,7 +344,7 @@ class GetPostsForm
     private function _offset() {
     	return sprintf('<label for="%s" class="sp_text_label">%s</label> <input type="text" name="%s" id="%s" value="" />'
 	    	, $this->id_prefix . 'offset'
-	    	, __('Limit', SummarizePosts::txtdomain)
+	    	, __('Offset', SummarizePosts::txtdomain)
     		, $this->name_prefix . 'offset'
     		, $this->id_prefix . 'offset');
     }
@@ -326,7 +358,7 @@ class GetPostsForm
     
     	$post_types = get_post_types();
     	foreach ($post_types as $k => $pt) {
-    		$output .= sprintf('<input type="checkbox" name="%s[]" id="%s" value="%s"> <label for="%s>%id</label><br/>'
+    		$output .= sprintf('<input type="checkbox" name="%s[]" id="%s" value="%s"> <label for="%s">%s</label><br/>'
     			, $this->name_prefix . 'omit_post_type'
     			, $this->id_prefix . 'omit_post_type_' . $pt
     			, $pt
@@ -343,8 +375,8 @@ class GetPostsForm
 	 */
     private function _order() {
     	return '<span class="sp_radio_label">'.__('Sort Order', SummarizePosts::txtdomain).'</span><br/>	
-    		<input name="'.$this->name_prefix . 'order" id="'. $this->id_prefix.'order_asc" value="ASC" /> <label for="'. $this->id_prefix.'order_asc">'.__('Ascending', SummarizePosts::txtdomain).'</label><br/>
-    		<input name="'.$this->name_prefix . 'order" id="'. $this->id_prefix.'order_desc" value="DESC" /> <label for="'. $this->id_prefix.'order_desc">'.__('Descending', SummarizePosts::txtdomain).'</label>';
+    		<input type="radio" name="'.$this->name_prefix . 'order" id="'. $this->id_prefix.'order_asc" value="ASC" /> <label for="'. $this->id_prefix.'order_asc">'.__('Ascending', SummarizePosts::txtdomain).'</label><br/>
+    		<input type="radio" name="'.$this->name_prefix . 'order" id="'. $this->id_prefix.'order_desc" value="DESC" /> <label for="'. $this->id_prefix.'order_desc">'.__('Descending', SummarizePosts::txtdomain).'</label>';
     }
 
 	//------------------------------------------------------------------------------
@@ -453,11 +485,11 @@ class GetPostsForm
 	 * Lets the user select a valid post_type
 	 */
     private function _post_type() {
-    	$output = '<span class="sp_radio_label">'.__('Post Types', SummarizePosts::txtdomain).'</span><br/>';
-    
+    	$output = '<br/><span class="sp_radio_label">'.__('Post Types', SummarizePosts::txtdomain).'</span><br/>';
+
     	$post_types = get_post_types();
     	foreach ($post_types as $k => $pt) {
-    		$output .= sprintf('<input type="checkbox" name="%s[]" id="%s" value="%s"> <label for="%s>%id</label><br/>'
+    		$output .= sprintf('<input type="checkbox" name="%s[]" id="%s" value="%s"> <label for="%s">%s</label><br/>'
     			, $this->name_prefix . 'post_type'
     			, $this->id_prefix . 'post_type_' . $pt
     			, $pt
@@ -575,22 +607,33 @@ class GetPostsForm
 	//------------------------------------------------------------------------------
 	/**
 	 * Generate a form.  This is the main event.
+	 *
+	 * @param	array	specify which parameters you want to search by
+	 * @param	array	Limit selectable options, e.g. you may want the user to search 
+	 *					only some (but not all) post_types.
+	 * @param	array	Hard limits. These ar invisible to the user on the generated form,
+	 *					but if set, they ensure that the user cannot view data they aren't 
+	 *					supposed to see.
+	 * @param	string	string to format the output.
 	 */
-	public function generate($tpl=null, $args=array()) {
+	public function generate($search_by=array(), $tpl=null) {
 		if (empty($tpl)) {
 			$tpl = self::$form_tpl;
 		}
-		if (!empty($args)) {
+		if (!empty($search_by)) {
 			// override
+			$this->search_by = $search_by;
 		}
 		
 		$output = '';
 		$this->placeholders['content'] = '';
-		foreach ($this->props as $p) {
+		foreach ($this->search_by as $p) {
 			$function_name = '_'.$p;
-			$this->placeholders[$p] = $this->$function_name();
-			// Keep the main 'content' bit populated.
-			$this->placeholders['content'] .= $this->placeholders[$p];
+			if (method_exists($this, $function_name)) {
+				$this->placeholders[$p] = $this->$function_name();
+				// Keep the main 'content' bit populated.
+				$this->placeholders['content'] .= $this->placeholders[$p];
+			}
 		}
 		
 		// Get help
@@ -602,6 +645,14 @@ class GetPostsForm
 		$this->placeholders['help'] = implode(', ', $all_placeholders);
 		
 		return $this->parse($tpl, $this->placeholders);
+	}
+	
+	//------------------------------------------------------------------------------
+	/**
+	 * Retrieves the "No Results" message.
+	 */
+	public function get_no_results_msg() {
+		return $this->no_results_msg;
 	}
 	
 	//------------------------------------------------------------------------------
@@ -619,7 +670,10 @@ class GetPostsForm
 	public function set_id_prefix($prefix) {
 		if (is_scalar($prefix)) {
 			$this->id_prefix = $prefix;
-		}	
+		}
+		else {
+			$this->errors['set_id_prefix'] = sprintf( __('Invalid data type passed to %s function. Input must be a string.', SummarizePosts::txtdomain), __FUNCTION__);
+		}
 	}
 	
 	//------------------------------------------------------------------------------
@@ -630,8 +684,25 @@ class GetPostsForm
 		if (is_scalar($prefix)) {
 			$this->name_prefix = $prefix;
 		}	
+		else {
+			$this->errors['set_id_prefix'] = sprintf( __('Invalid data type passed to %s function. Input must be a string.', SummarizePosts::txtdomain), __FUNCTION__);
+		}
 	}
 
+	//------------------------------------------------------------------------------
+	/**
+	 * Sets the "No Results" message.
+	 * @param	string	New message
+	 */
+	public function set_no_results_msg($msg) {
+		if (is_scalar($msg)) {
+			$this->no_results_msg;
+		}
+		else {
+			$this->errors['set_id_prefix'] = sprintf( __('Invalid data type passed to %s function. Input must be a string.', SummarizePosts::txtdomain), __FUNCTION__);
+		}
+	}
+	
 	//------------------------------------------------------------------------------
 	/**
 	 * This allows for a dumb field override, but you could also pass it your own
@@ -641,6 +712,9 @@ class GetPostsForm
 	public function set_nonce_field($str){
 		if (is_scalar($str)){
 			$this->nonce_field = $str;
+		}
+		else {
+			$this->errors['set_id_prefix'] = sprintf( __('Invalid data type passed to %s function. Input must be a string.', SummarizePosts::txtdomain), __FUNCTION__);
 		}
 	}
 	

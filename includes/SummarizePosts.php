@@ -429,10 +429,11 @@ class SummarizePosts
 	/**
 	 * This is the tie-into the GetPostsForm object: it returns (not prints) a form 
 	 * OR it handles form submissions and returns results.
-	 * @param	array
-	 * @return	string
+	 * @param	array	defines which controls should be displayed
+	 * @param	string	passed to the get_posts() function, this defines how each result will be formatted.
+	 * @return	string	HTML form, or HTML results if the form was property submitted.
 	 */
-	public static function search($args=array()) {
+	public static function search($args=array(),$content_tpl = null) {
 		$Form = new GetPostsForm($args);
 		
 		$nonce = self::get_from_array($_POST, $Form->nonce_name);
