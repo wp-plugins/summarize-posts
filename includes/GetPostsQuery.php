@@ -819,7 +819,7 @@ class GetPostsQuery
 			LEFT JOIN {$wpdb->postmeta} thumb_join ON {$wpdb->posts}.ID=thumb_join.post_id
 				AND thumb_join.meta_key='_thumbnail_id'
 			LEFT JOIN {$wpdb->posts} thumbnail ON thumbnail.ID=thumb_join.meta_value
-			LEFT JOIN {$wpdb->postmeta} ON wp_posts.ID={$wpdb->postmeta}.post_id
+			LEFT JOIN {$wpdb->postmeta} ON {$wpdb->posts}.ID={$wpdb->postmeta}.post_id
 			LEFT JOIN
 			(
 				SELECT
@@ -1460,7 +1460,7 @@ class GetPostsQuery
 			$this->args['taxonomy_term'] = $this->_append_children_taxonomies($this->args['taxonomy_term']);
 		}
 		
-		
+
 		// ARRAY_A or OBJECT
 		$results = $wpdb->get_results( $this->_get_sql(), $this->output_type );
 				
@@ -1482,7 +1482,6 @@ class GetPostsQuery
 			// OBJECT
 			if ( $this->output_type == OBJECT )
 			{
-
 				if ( !empty($r->metadata) )
 				{
 					// Manually grab the data
@@ -1518,7 +1517,7 @@ class GetPostsQuery
 				$r->parent_permalink	= get_permalink( $r->parent_ID );
 				// See http://stackoverflow.com/questions/3602941/why-isnt-apply-filterthe-content-outputting-anything
 				// $r->the_content 	= get_the_content(); // only works inside the !@#%! loop
-				$r->the_content 	= apply_filters('the_content', $r->post_content);
+				// $r->the_content 	= apply_filters('the_content', $r->post_content);
 				$r->content 		= $r->post_content;
 				//$r['the_author']	->= get_the_author(); // only works inside the !@#%! loop
 				$r->title 			= $r->post_title;

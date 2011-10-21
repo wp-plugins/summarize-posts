@@ -601,6 +601,7 @@ Convenience:
 	*/
 	public static function get_posts($raw_args=array(), $content_tpl = null)
 	{	
+
 		$formatting_args = shortcode_atts( self::$formatting_defaults, $raw_args );
 
 		$formatting_args['tpl_str'] = self::_get_tpl($content_tpl, $formatting_args);		
@@ -608,6 +609,7 @@ Convenience:
 		$output = '';
 		//print_r($formatting_args); exit;
 		$Q = new GetPostsQuery( $raw_args );
+
 		$results = $Q->get_posts();
 
 		// Print help message.  Should include the SQL statement, errors
