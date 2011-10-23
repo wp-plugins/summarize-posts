@@ -452,7 +452,13 @@ class SummarizePosts
 				$search_args[$new_key] = $v;
 			}
 
-			return self::get_posts($search_args);
+			$results = self::get_posts($search_args);
+			if  (empty($results)) {
+				print $Form->get_no_results_msg();
+			}
+			else {
+				print $results;
+			}
 		}
 		else {
 			return "Invalid Submission.";
@@ -619,6 +625,9 @@ Convenience:
 		}
 		else
 		{
+			if (empty($results)) {
+				return '';
+			}
 			$output .= self::format_results($results, $formatting_args);
 			if ( $Q->paginate )
 			{

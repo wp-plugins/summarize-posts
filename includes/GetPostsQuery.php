@@ -403,7 +403,12 @@ class GetPostsQuery
 					$this->args['taxonomy_depth'] =(int) $val;
 					break;
 				case 'search_columns':
-					$this->args['search_columns'] = $this->_comma_separated_to_array($val,'search_columns');
+					if (!empty($val)) {
+						$this->args['search_columns'] = $this->_comma_separated_to_array($val,'search_columns');
+					}
+					else {
+						$this->args['search_columns'] = self::$defaults['search_columns'];
+					}
 					break;
 				
 				// And or Or
@@ -819,7 +824,7 @@ class GetPostsQuery
 			LEFT JOIN {$wpdb->postmeta} thumb_join ON {$wpdb->posts}.ID=thumb_join.post_id
 				AND thumb_join.meta_key='_thumbnail_id'
 			LEFT JOIN {$wpdb->posts} thumbnail ON thumbnail.ID=thumb_join.meta_value
-			LEFT JOIN {$wpdb->postmeta} ON {$wpdb->posts}.ID={$wpdb->postmeta}.post_id
+			LEFT JOIN {$wpdb->postmeta} ON wp_posts.ID={$wpdb->postmeta}.post_id
 			LEFT JOIN
 			(
 				SELECT
