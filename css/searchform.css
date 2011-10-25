@@ -89,6 +89,7 @@ p, a, h1, h2, h3, h4, h5, li {
 }
 
 .js_button_wrapper {
+	clear:both;
 	display:block;
 }
 .js_button {
