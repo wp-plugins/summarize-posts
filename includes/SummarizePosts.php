@@ -637,5 +637,26 @@ Convenience:
 		
 		return $output;
 	}
+	
+	//! From Viper's Video Quicktags
+	// Break the browser cache of TinyMCE
+	public static function tiny_mce_version( $version ) {
+		$version += 4;
+		return $version;
+	}
+
+
+	// Load the custom TinyMCE plugin
+	public static function tinymce_register_external_plugin( $plugins ) {
+		$plugins['summarize_posts'] = plugins_url('/summarize-posts/js/tinymce3/editor_plugin.js');
+		return $plugins;
+	}
+
+
+	// Add the custom TinyMCE buttons
+	public static function tinymce_add_button( $buttons ) {
+		array_push( $buttons, '|','summarize_posts' );
+		return $buttons;
+	}	
 }
 /*EOF*/

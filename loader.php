@@ -30,6 +30,11 @@ if ( empty(SummarizePostsTests::$errors) )
 {
 	add_action('init', 'SummarizePosts::initialize');
 	add_action('admin_menu', 'SummarizePosts::create_admin_menu');
+	
+	// TinyMCE Button stuff
+	add_filter('mce_external_plugins', 'SummarizePosts::tinymce_register_external_plugin');
+	add_filter('mce_buttons', 'SummarizePosts::tinymce_add_button');
+	add_filter('tiny_mce_version', 'SummarizePosts::tiny_mce_version');
 }
 
 /*EOF*/
